@@ -355,8 +355,9 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus, analytics
 			r.Route("/api/skills", func(r chi.Router) {
 				r.Get("/", h.ListSkills)
 				r.Post("/", h.CreateSkill)
-				r.Post("/import", h.ImportSkill)
-				r.Route("/{id}", func(r chi.Router) {
+r.Post("/import", h.ImportSkill)
+			r.Post("/import/zip", h.ImportSkillZip)
+			r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", h.GetSkill)
 					r.Put("/", h.UpdateSkill)
 					r.Delete("/", h.DeleteSkill)

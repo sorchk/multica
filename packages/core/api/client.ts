@@ -837,6 +837,33 @@ export class ApiClient {
     });
   }
 
+  async importSkillFromZip(zipFile: File): Promise<Skill[]> {
+    const formData = new FormData();
+    formData.append("file", zipFile);
+
+    const rid = createRequestId();
+    const start = Date.now();
+    this.logger.info("→ POST /api/skills/import/zip", { rid });
+
+    const res = await fetch(`${this.baseUrl}/api/skills/import/zip`, {
+      method: "POST",
+      headers: this.authHeaders(),
+      body: formData,
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) this.handleUnauthorized();
+      const message = await this.parseErrorMessage(res, `Import failed: ${res.status}`);
+      this.logger.error(`← ${res.status} /api/skills/import/zip`, { rid, duration: `${Date.now() - start}ms`, error: message });
+      throw new Error(message);
+    }
+
+    this.logger.info(`← ${res.status} /api/skills/import/zip`, { rid, duration: `${Date.now() - start}ms` });
+    const data = await res.json() as { skills: Skill[] };
+    return data.skills;
+  }
+
   async listAgentSkills(agentId: string): Promise<Skill[]> {
     return this.fetch(`/api/agents/${agentId}/skills`);
   }

@@ -1,0 +1,54 @@
+[build]
+  args_bin = []
+  bin = "./tmp/server"
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  delay = 100
+  exclude_dir = ["data", "pkg/db/generated", "tmp"]
+  exclude_file = []
+  exclude_regex = ["_test.go"]
+  exclude_unchanged = false
+  follow_symlink = false
+  full_bin = ""
+  include_dir = []
+  include_ext = ["go", "go2"]
+  kill_delay = "0s"
+  log = "build-errors.log"
+  poll = false
+  poll_interval = 0
+  rerun = false
+  rerun_delay = 500
+  send_interrupt = false
+  stop_on_error = false
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  main_only = false
+  time = false
+
+[misc]
+  clean_on_exit = true
+  close_error = false
+
+[proxy]
+  app_port = 0
+  enabled = false
+  http_port = 0
+
+[run]
+  args = []
+  env = {}
+  exec_cmd = ""
+  log_date_format = ""
+  log_time_format = "15:04:05"
+  name = ""
+  wait = false
+
+[screen]
+  clear_on_rebuild = false
+  keep_scroll = false
