@@ -701,7 +701,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
 
         <SidebarFooter className="p-2">
           <div className="flex justify-end">
-            <HelpLauncher />
+            {/* <HelpLauncher /> */}
           </div>
         </SidebarFooter>
         <SidebarRail />
