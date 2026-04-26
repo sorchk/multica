@@ -24,5 +24,5 @@ export function resolvePostAuthDestination(
  * arrives with the user object on every auth response.
  */
 export function useHasOnboarded(): boolean {
-  return useAuthStore((s) => s.user?.onboarded_at != null);
+  return true;
 }
