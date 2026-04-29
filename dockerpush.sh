@@ -15,7 +15,7 @@ export DOCKER_BUILDKIT=1
 # docker buildx ls
 docker buildx build \
   -f Dockerfile \
-  --platform linux/arm64,linux/amd64 \
+  --platform linux/arm64 \
   --build-arg VERSION=${ver} \
   --build-arg NEXT_PUBLIC_APP_VERSION=${ver} \
   --build-arg BUILD_DATE=${build_date} \
@@ -26,7 +26,7 @@ docker buildx build \
 
 docker buildx build \
   -f Dockerfile.web \
-  --platform linux/arm64,linux/amd64 \
+  --platform linux/arm64 \
   --build-arg VERSION=${ver} \
   --build-arg NEXT_PUBLIC_APP_VERSION=${ver} \
   --build-arg BUILD_DATE=${build_date} \
