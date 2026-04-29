@@ -15,6 +15,12 @@ import { pinKeys } from "../pins/queries";
 import { autopilotKeys } from "../autopilots/queries";
 import { runtimeKeys } from "../runtimes/queries";
 import {
+  agentTaskSnapshotKeys,
+  agentActivityKeys,
+  agentRunCountsKeys,
+  agentTasksKeys,
+} from "../agents/queries";
+import {
   onIssueCreated,
   onIssueUpdated,
   onIssueDeleted,
@@ -143,6 +149,34 @@ export function useRealtimeSync(
         const wsId = getCurrentWsId();
         if (wsId) qc.invalidateQueries({ queryKey: autopilotKeys.all(wsId) });
       },
+      // Powers the agent presence cache: any task lifecycle change
+      // (dispatch / completed / failed / cancelled) refreshes the
+      // workspace-wide agent-task-snapshot query so per-agent presence
+      // reflects the change. task:message is NOT in this prefix path — it
+      // stays in specificEvents to avoid an invalidate storm during long runs.
+      task: () => {
+        const wsId = getCurrentWsId();
+        if (!wsId) return;
+        qc.invalidateQueries({ queryKey: agentTaskSnapshotKeys.list(wsId) });
+        // 30d activity series shares the same lifecycle signal — any task
+        // completion / failure shifts the histogram. (Dispatch alone
+        // doesn't change a completed_at-anchored series, but invalidating
+        // here keeps the WS-handler shape uniform; the resulting refetch
+        // is cheap.) Both the list (trailing 7d slice) and the detail
+        // panel read off this single cache.
+        qc.invalidateQueries({ queryKey: agentActivityKeys.last30d(wsId) });
+        // 30-day run count likewise increments per task lifecycle event.
+        qc.invalidateQueries({ queryKey: agentRunCountsKeys.last30d(wsId) });
+        // Per-agent task list (Activity tab "Recent work"). Prefix match
+        // catches every agent's list — the per-agent detail key sits
+        // under agentTasks/<wsId>/<agentId>.
+        qc.invalidateQueries({ queryKey: agentTasksKeys.all(wsId) });
+        // Per-issue task list (issue-detail Execution log). Prefix match
+        // across all issues — keeps the contract "any task: event makes
+        // every list-of-tasks query stale" so cache stays fresh even
+        // when the relevant component isn't currently mounted.
+        qc.invalidateQueries({ queryKey: ["issues", "tasks"] });
+      },
     };
 
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -167,9 +201,18 @@ export function useRealtimeSync(
       "issue_reaction:added", "issue_reaction:removed",
       "subscriber:added", "subscriber:removed",
       "daemon:heartbeat",
-      // Chat / task events are handled explicitly below; do not double-invalidate.
+      // Chat events are handled explicitly below; do not double-invalidate.
       "chat:message", "chat:done", "chat:session_read",
-      "task:message", "task:completed", "task:failed",
+      // task:message stays out of the prefix path because it fires per
+      // streamed message during a long run — invalidating the snapshot on
+      // every message would flood the network. Specific chat handlers below
+      // still receive it via ws.on() (a separate subscription channel).
+      "task:message",
+      // task:completed / task:failed deliberately NOT here. They go through
+      // both the task-prefix invalidate (refreshes the agent-task-snapshot
+      // cache) AND the chat-specific ws.on() handlers below. The two
+      // channels are independent — onAny dispatch and ws.on are separate
+      // subscriptions.
     ]);
 
     const unsubAny = ws.onAny((msg) => {
@@ -417,7 +460,7 @@ export function useRealtimeSync(
       qc.invalidateQueries({ queryKey: workspaceKeys.myInvitations() });
     });
 
-    // --- Chat / task events (global, survives chat page unmount) ---
+    // --- Chat / task events (global, survives ChatWindow unmount) ---
     //
     // Single source of truth: the Query cache. No Zustand writes here — the
     // earlier mirror caused a race where the cache and store disagreed
@@ -566,6 +609,9 @@ export function useRealtimeSync(
           qc.invalidateQueries({ queryKey: projectKeys.all(wsId) });
           qc.invalidateQueries({ queryKey: runtimeKeys.all(wsId) });
           qc.invalidateQueries({ queryKey: autopilotKeys.all(wsId) });
+          qc.invalidateQueries({ queryKey: agentTaskSnapshotKeys.all(wsId) });
+          qc.invalidateQueries({ queryKey: agentActivityKeys.all(wsId) });
+          qc.invalidateQueries({ queryKey: agentRunCountsKeys.all(wsId) });
         }
         qc.invalidateQueries({ queryKey: workspaceKeys.list() });
       } catch (e) {
