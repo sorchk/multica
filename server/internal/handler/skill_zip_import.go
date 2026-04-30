@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/multica-ai/multica/server/pkg/protocol"
+	"github.com/multica-ai/multica/server/internal/util"
 )
 
 type ImportSkillZipResponse struct {
@@ -24,6 +25,8 @@ func (h *Handler) ImportSkillZip(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	workspaceUUID := util.MustParseUUID(workspaceID)
+	creatorUUID := util.MustParseUUID(creatorID)
 
 	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB limit
 		writeError(w, http.StatusBadRequest, "failed to parse multipart form: "+err.Error())
@@ -86,8 +89,8 @@ func (h *Handler) ImportSkillZip(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp, err := h.createSkillWithFiles(r.Context(), skillCreateInput{
-			WorkspaceID: workspaceID,
-			CreatorID:   creatorID,
+			WorkspaceID: workspaceUUID,
+			CreatorID:   creatorUUID,
 			Name:        skill.Name,
 			Description: skill.Description,
 			Content:     skill.Content,
