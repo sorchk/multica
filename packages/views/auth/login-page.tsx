@@ -13,11 +13,6 @@ import {
 import { Input } from "@multica/ui/components/ui/input";
 import { Button } from "@multica/ui/components/ui/button";
 import { Label } from "@multica/ui/components/ui/label";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@multica/ui/components/ui/input-otp";
 import { useAuthStore } from "@multica/core/auth";
 import { workspaceKeys } from "@multica/core/workspace/queries";
 import { api } from "@multica/core/api";
@@ -106,12 +101,11 @@ export function LoginPage({
   extra,
 }: LoginPageProps) {
   const qc = useQueryClient();
-  const [step, setStep] = useState<"email" | "code" | "cli_confirm">("email");
+  const [step, setStep] = useState<"email" | "cli_confirm">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
   const [existingUser, setExistingUser] = useState<User | null>(null);
   // Tracks how the existing session was detected so handleCliAuthorize
   // uses the matching token source (cookie → issueCliToken, localStorage → direct).
@@ -155,47 +149,24 @@ export function LoginPage({
 
   // Cooldown timer for resend
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [cooldown]);
+  }, []);
 
-  const handleSendCode = useCallback(
+  const handleLogin = useCallback(
     async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!email) {
         setError("Email is required");
         return;
       }
-      setLoading(true);
-      setError("");
-      try {
-        await useAuthStore.getState().sendCode(email);
-        setStep("code");
-        setCode("");
-        setCooldown(60);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to send code. Make sure the server is running.",
-        );
-      } finally {
-        setLoading(false);
+      if (!code ) {
+       setError("code is required");
+        return;
       }
-    },
-    [email],
-  );
-
-  const handleVerify = useCallback(
-    async (value: string) => {
-      if (value.length !== 6) return;
       setLoading(true);
       setError("");
       try {
         if (cliCallback) {
-          // CLI path: get token directly for the redirect URL
-          const { token } = await api.verifyCode(email, value);
+          const { token } = await api.verifyCode(email, code);
           localStorage.setItem("multica_token", token);
           api.setToken(token);
           onTokenObtained?.();
@@ -203,11 +174,7 @@ export function LoginPage({
           return;
         }
 
-        // Normal path: seed the workspace list into the Query cache so the
-        // caller's onSuccess can read it synchronously to compute a destination
-        // URL (first workspace's slug, or /workspaces/new for zero-workspace
-        // users).
-        await useAuthStore.getState().verifyCode(email, value);
+        await useAuthStore.getState().verifyCode(email, code);
         const wsList = await api.listWorkspaces();
         qc.setQueryData(workspaceKeys.list(), wsList);
         onTokenObtained?.();
@@ -220,21 +187,8 @@ export function LoginPage({
         setLoading(false);
       }
     },
-    [email, onSuccess, cliCallback, onTokenObtained, qc],
+    [email, code, onSuccess, cliCallback, onTokenObtained, qc],
   );
-
-  const handleResend = async () => {
-    if (cooldown > 0) return;
-    setError("");
-    try {
-      await useAuthStore.getState().sendCode(email);
-      setCooldown(60);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to resend code",
-      );
-    }
-  };
 
   const handleCliAuthorize = async () => {
     if (!cliCallback) return;
@@ -327,75 +281,7 @@ export function LoginPage({
   }
 
   // -------------------------------------------------------------------------
-  // Code verification step
-  // -------------------------------------------------------------------------
-
-  if (step === "code") {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <Card className="w-full max-w-sm">
-          <CardHeader className="text-center">
-            {logo && <div className="mx-auto mb-4">{logo}</div>}
-            <CardTitle className="text-2xl">Check your email</CardTitle>
-            <CardDescription>
-              We sent a verification code to{" "}
-              <span className="font-medium text-foreground">{email}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <InputOTP
-              maxLength={6}
-              value={code}
-              onChange={(value) => {
-                setCode(value);
-                if (value.length === 6) handleVerify(value);
-              }}
-              disabled={loading}
-            >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={cooldown > 0}
-                className="text-primary underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
-              >
-                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-              </button>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => {
-                setStep("email");
-                setCode("");
-                setError("");
-              }}
-            >
-              Back
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Email step
+  // Email + Code step
   // -------------------------------------------------------------------------
 
   return (
@@ -405,11 +291,11 @@ export function LoginPage({
           {logo && <div className="mx-auto mb-4">{logo}</div>}
           <CardTitle className="text-2xl">Sign in to Multica</CardTitle>
           <CardDescription>
-            Enter your email to get a login code
+            Enter your email and verification code
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form id="login-form" onSubmit={handleSendCode} className="space-y-4">
+          <form id="login-form" onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="login-email">Email</Label>
               <Input
@@ -419,6 +305,17 @@ export function LoginPage({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login-code">Verification Code</Label>
+              <Input
+                id="login-code"
+                type="password"
+                placeholder="Enter Verification code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
                 required
               />
             </div>
@@ -433,9 +330,9 @@ export function LoginPage({
             form="login-form"
             className="w-full"
             size="lg"
-            disabled={!email || loading}
+            disabled={!email || !code || loading}
           >
-            {loading ? "Sending code..." : "Continue"}
+            {loading ? "Signing in..." : "Sign in"}
           </Button>
           {(google || onGoogleLogin) && (
             <>
