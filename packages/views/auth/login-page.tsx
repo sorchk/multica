@@ -351,7 +351,6 @@ export function LoginPage({
                 if (value.length === 6) handleVerify(value);
               }}
               disabled={loading}
-              autoFocus
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />

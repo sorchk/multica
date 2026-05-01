@@ -55,6 +55,9 @@ import type {
   CreateProjectRequest,
   UpdateProjectRequest,
   ListProjectsResponse,
+  ProjectResource,
+  CreateProjectResourceRequest,
+  ListProjectResourcesResponse,
   Label,
   CreateLabelRequest,
   UpdateLabelRequest,
@@ -75,6 +78,8 @@ import type {
   ListAutopilotsResponse,
   GetAutopilotResponse,
   ListAutopilotRunsResponse,
+  NotificationPreferenceResponse,
+  NotificationPreferences,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import { type Logger, noopLogger } from "../logger";
@@ -783,6 +788,18 @@ export class ApiClient {
     return this.fetch("/api/inbox/archive-completed", { method: "POST" });
   }
 
+  // Notification preferences
+  async getNotificationPreferences(): Promise<NotificationPreferenceResponse> {
+    return this.fetch("/api/notification-preferences");
+  }
+
+  async updateNotificationPreferences(preferences: NotificationPreferences): Promise<NotificationPreferenceResponse> {
+    return this.fetch("/api/notification-preferences", {
+      method: "PUT",
+      body: JSON.stringify({ preferences }),
+    });
+  }
+
   // App Config
   async getConfig(): Promise<{
     cdn_domain: string;
@@ -917,33 +934,6 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-  }
-
-  async importSkillFromZip(zipFile: File): Promise<Skill[]> {
-    const formData = new FormData();
-    formData.append("file", zipFile);
-
-    const rid = createRequestId();
-    const start = Date.now();
-    this.logger.info("→ POST /api/skills/import/zip", { rid });
-
-    const res = await fetch(`${this.baseUrl}/api/skills/import/zip`, {
-      method: "POST",
-      headers: this.authHeaders(),
-      body: formData,
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      if (res.status === 401) this.handleUnauthorized();
-      const message = await this.parseErrorMessage(res, `Import failed: ${res.status}`);
-      this.logger.error(`← ${res.status} /api/skills/import/zip`, { rid, duration: `${Date.now() - start}ms`, error: message });
-      throw new Error(message);
-    }
-
-    this.logger.info(`← ${res.status} /api/skills/import/zip`, { rid, duration: `${Date.now() - start}ms` });
-    const data = await res.json() as { skills: Skill[] };
-    return data.skills;
   }
 
   async listAgentSkills(agentId: string): Promise<Skill[]> {
@@ -1085,6 +1075,32 @@ export class ApiClient {
 
   async deleteProject(id: string): Promise<void> {
     await this.fetch(`/api/projects/${id}`, { method: "DELETE" });
+  }
+
+  // Project resources
+  async listProjectResources(
+    projectId: string,
+  ): Promise<ListProjectResourcesResponse> {
+    return this.fetch(`/api/projects/${projectId}/resources`);
+  }
+
+  async createProjectResource(
+    projectId: string,
+    data: CreateProjectResourceRequest,
+  ): Promise<ProjectResource> {
+    return this.fetch(`/api/projects/${projectId}/resources`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProjectResource(
+    projectId: string,
+    resourceId: string,
+  ): Promise<void> {
+    await this.fetch(`/api/projects/${projectId}/resources/${resourceId}`, {
+      method: "DELETE",
+    });
   }
 
   // Labels

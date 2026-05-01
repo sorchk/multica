@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import {
   AlertCircle,
-  Archive,
   ArrowLeft,
   ChevronRight,
   Download,
@@ -40,9 +39,8 @@ import { useScrollFade } from "@multica/ui/hooks/use-scroll-fade";
 import { cn } from "@multica/ui/lib/utils";
 import { openExternal } from "../../platform";
 import { RuntimeLocalSkillImportPanel } from "./runtime-local-skill-import-panel";
-import { ZipSkillImportForm } from "./zip-skill-import-form";
 
-type Method = "chooser" | "manual" | "url" | "runtime" | "zip";
+type Method = "chooser" | "manual" | "url" | "runtime";
 
 /** After create/import, seed the detail cache with the freshly-returned skill
  *  so the next navigation renders immediately — no extra round-trip. Also
@@ -91,12 +89,6 @@ function MethodChooser({ onChoose }: { onChoose: (m: Method) => void }) {
       icon: HardDrive,
       title: "Copy from runtime",
       desc: "Promote a skill already installed on your local runtime.",
-    },
-    {
-      key: "zip",
-      icon: Archive,
-      title: "Import from ZIP",
-      desc: "Upload a skill bundle as a ZIP file.",
     },
   ];
   return (
@@ -449,7 +441,6 @@ const METHOD_TITLES: Record<Method, string> = {
   manual: "Create manually",
   url: "Import from URL",
   runtime: "Copy from runtime",
-  zip: "Import from ZIP",
 };
 
 const METHOD_DESCS: Record<Method, string> = {
@@ -458,7 +449,6 @@ const METHOD_DESCS: Record<Method, string> = {
   url: "Fetch a published skill by URL. Files are pulled server-side.",
   runtime:
     "Scan a local runtime and promote one of its on-disk skills into this workspace.",
-  zip: "Upload a skill bundle as a ZIP file from your computer.",
 };
 
 export function CreateSkillDialog({
@@ -475,7 +465,7 @@ export function CreateSkillDialog({
     onClose();
   };
 
-  const wide = method === "runtime" || method === "zip";
+  const wide = method === "runtime";
 
   // Mount pattern mirrors CreateIssue / CreateProject: the parent conditionally
   // renders this component and `<Dialog open>` is hard-coded. Toggling `open`
@@ -561,12 +551,6 @@ export function CreateSkillDialog({
         )}
         {method === "runtime" && (
           <RuntimeLocalSkillImportPanel onImported={handleCreated} />
-        )}
-        {method === "zip" && (
-          <ZipSkillImportForm
-            onImported={handleCreated}
-            onCancel={() => setMethod("chooser")}
-          />
         )}
       </DialogContent>
     </Dialog>
