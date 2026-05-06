@@ -560,7 +560,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             <SidebarMenuItem>
               <SidebarMenuButton
                 className="text-muted-foreground"
-                onClick={() => useModalStore.getState().open("quick-create-issue")}
+                onClick={() => useModalStore.getState().open("create-issue")}
               >
                 <span className="relative">
                   <SquarePen />
@@ -692,7 +692,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
 
         <SidebarFooter className="p-2">
           <div className="flex justify-end">
-            <HelpLauncher />
+            {/* <HelpLauncher /> */}
           </div>
         </SidebarFooter>
         <SidebarRail />
