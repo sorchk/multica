@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
+  Archive,
   ChevronRight,
   Download,
   HardDrive,
@@ -40,9 +41,10 @@ import { useScrollFade } from "@multica/ui/hooks/use-scroll-fade";
 import { cn } from "@multica/ui/lib/utils";
 import { openExternal } from "../../platform";
 import { RuntimeLocalSkillImportPanel } from "./runtime-local-skill-import-panel";
+import { ZipSkillImportForm } from "./zip-skill-import-form";
 import { useT } from "../../i18n";
 
-type Method = "chooser" | "manual" | "url" | "runtime";
+type Method = "chooser" | "manual" | "url" | "runtime" | "zip";
 
 function seedAfterCreate(
   qc: ReturnType<typeof useQueryClient>,
@@ -67,11 +69,12 @@ function MethodChooser({ onChoose }: { onChoose: (m: Method) => void }) {
   const methods: {
     key: Method;
     icon: typeof Plus;
-    titleKey: "manual" | "url" | "runtime";
+    titleKey: "manual" | "url" | "runtime" | "zip";
   }[] = [
     { key: "manual", icon: Plus, titleKey: "manual" },
     { key: "url", icon: Download, titleKey: "url" },
     { key: "runtime", icon: HardDrive, titleKey: "runtime" },
+    { key: "zip", icon: Archive, titleKey: "zip" },
   ];
   return (
     <div className="grid gap-2 p-5">
@@ -442,7 +445,7 @@ export function CreateSkillDialog({
     onClose();
   };
 
-  const wide = method === "runtime";
+  const wide = method === "runtime" || method === "zip";
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -518,6 +521,12 @@ export function CreateSkillDialog({
         )}
         {method === "runtime" && (
           <RuntimeLocalSkillImportPanel onImported={handleCreated} />
+        )}
+        {method === "zip" && (
+          <ZipSkillImportForm
+            onImported={handleCreated}
+            onCancel={() => setMethod("chooser")}
+          />
         )}
       </DialogContent>
     </Dialog>

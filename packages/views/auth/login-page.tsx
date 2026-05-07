@@ -17,6 +17,7 @@ import { useAuthStore } from "@multica/core/auth";
 import { workspaceKeys } from "@multica/core/workspace/queries";
 import { api } from "@multica/core/api";
 import type { User } from "@multica/core/types";
+import { useT } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,6 +102,7 @@ export function LoginPage({
   extra,
 }: LoginPageProps) {
   const qc = useQueryClient();
+  const { t } = useT("auth");
   const [step, setStep] = useState<"email" | "cli_confirm">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -155,11 +157,11 @@ export function LoginPage({
     async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!email) {
-        setError("Email is required");
+        setError(t(($) => $.common.email_required));
         return;
       }
-      if (!code ) {
-       setError("code is required");
+      if (!code) {
+        setError(t(($) => $.errors.code_required));
         return;
       }
       setLoading(true);
@@ -180,9 +182,7 @@ export function LoginPage({
         onTokenObtained?.();
         onSuccess();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Invalid or expired code",
-        );
+        setError(t(($) => $.errors.code_invalid));
         setCode("");
         setLoading(false);
       }
@@ -211,7 +211,7 @@ export function LoginPage({
       onTokenObtained?.();
       redirectToCliCallback(cliCallback.url, token, cliCallback.state);
     } catch {
-      setError("Failed to authorize CLI. Please log in again.");
+      setError(t(($) => $.errors.cli_auth_failed));
       setExistingUser(null);
       setStep("email");
       setLoading(false);
@@ -246,13 +246,9 @@ export function LoginPage({
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             {logo && <div className="mx-auto mb-4">{logo}</div>}
-            <CardTitle className="text-2xl">Authorize CLI</CardTitle>
+            <CardTitle className="text-2xl">{t(($) => $.cli.title)}</CardTitle>
             <CardDescription>
-              Allow the CLI to access Multica as{" "}
-              <span className="font-medium text-foreground">
-                {existingUser.email}
-              </span>
-              ?
+              {t(($) => $.cli.description, { email: existingUser.email })}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -262,7 +258,7 @@ export function LoginPage({
               className="w-full"
               size="lg"
             >
-              {loading ? "Authorizing..." : "Authorize"}
+              {loading ? t(($) => $.cli.authorizing) : t(($) => $.cli.authorize)}
             </Button>
             <Button
               variant="ghost"
@@ -272,7 +268,7 @@ export function LoginPage({
                 setStep("email");
               }}
             >
-              Use a different account
+              {t(($) => $.cli.different_account)}
             </Button>
           </CardContent>
         </Card>
@@ -289,19 +285,19 @@ export function LoginPage({
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           {logo && <div className="mx-auto mb-4">{logo}</div>}
-          <CardTitle className="text-2xl">Sign in to Multica</CardTitle>
+          <CardTitle className="text-2xl">{t(($) => $.signin.title)}</CardTitle>
           <CardDescription>
-            Enter your email and verification code
+            {t(($) => $.signin.description)}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form id="login-form" onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email">{t(($) => $.common.email)}</Label>
               <Input
                 id="login-email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t(($) => $.common.email_placeholder)}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus
@@ -309,11 +305,11 @@ export function LoginPage({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="login-code">Verification Code</Label>
+              <Label htmlFor="login-code">{t(($) => $.signin.code_label)}</Label>
               <Input
                 id="login-code"
                 type="password"
-                placeholder="Enter Verification code"
+                placeholder={t(($) => $.signin.code_placeholder)}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required
@@ -332,7 +328,7 @@ export function LoginPage({
             size="lg"
             disabled={!email || !code || loading}
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? t(($) => $.signin.sending) : t(($) => $.signin.continue)}
           </Button>
           {(google || onGoogleLogin) && (
             <>
@@ -341,7 +337,7 @@ export function LoginPage({
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                  <span className="bg-card px-2 text-muted-foreground">{t(($) => $.signin.divider)}</span>
                 </div>
               </div>
               <Button
@@ -370,7 +366,7 @@ export function LoginPage({
                     fill="#EA4335"
                   />
                 </svg>
-                Continue with Google
+                {t(($) => $.signin.google)}
               </Button>
             </>
           )}

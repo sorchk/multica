@@ -77,7 +77,7 @@ export function ZipSkillImportForm({ onImported, onCancel }: ZipFormProps) {
     setError("");
     try {
       const skills = await api.importSkillFromZip(selectedFile);
-      setImportedSkills(skills.map((s) => ({ id: s.id, name: s.name })));
+      setImportedSkills(skills.map((s: Skill) => ({ id: s.id, name: s.name })));
       seedAfterImport(qc, wsId, skills);
       toast.success(`Imported ${skills.length} skill${skills.length === 1 ? "" : "s"}`);
       if (skills.length > 0) {

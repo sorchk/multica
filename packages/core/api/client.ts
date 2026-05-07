@@ -975,6 +975,15 @@ export class ApiClient {
     });
   }
 
+  async importSkillFromZip(file: File): Promise<Skill[]> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.fetch("/api/skills/import-zip", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
   async listAgentSkills(agentId: string): Promise<SkillSummary[]> {
     return this.fetch(`/api/agents/${agentId}/skills`);
   }
