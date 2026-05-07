@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { RedirectToLoginOrWorkspace } from "@/features/landing/components/redirect-to-login-or-workspace";
+import { MulticaLanding } from "@/features/landing/components/multica-landing";
+import { RedirectIfAuthenticated } from "@/features/landing/components/redirect-if-authenticated";
 
 export const metadata: Metadata = {
   title: {
@@ -19,5 +20,10 @@ export const metadata: Metadata = {
 };
 
 export default function LandingPage() {
-  return <RedirectToLoginOrWorkspace />;
+  return (
+    <>
+      <RedirectIfAuthenticated />
+      <MulticaLanding />
+    </>
+  );
 }
