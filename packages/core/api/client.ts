@@ -82,6 +82,9 @@ import type {
   ListAutopilotRunsResponse,
   NotificationPreferenceResponse,
   NotificationPreferences,
+  FeishuUserConfig,
+  FeishuTaskMapping,
+  BitableField,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import { type Logger, noopLogger } from "../logger";
@@ -1274,5 +1277,33 @@ export class ApiClient {
 
   async deleteAutopilotTrigger(autopilotId: string, triggerId: string): Promise<void> {
     await this.fetch(`/api/autopilots/${autopilotId}/triggers/${triggerId}`, { method: "DELETE" });
+  }
+
+  async getFeishuConfig(): Promise<FeishuUserConfig | null> {
+    return this.fetch(`/api/feishu/config`);
+  }
+
+  async saveFeishuConfig(config: FeishuUserConfig): Promise<void> {
+    await this.fetch(`/api/feishu/config`, { method: "PUT", body: JSON.stringify(config) });
+  }
+
+  async deleteFeishuConfig(): Promise<void> {
+    await this.fetch(`/api/feishu/config`, { method: "DELETE" });
+  }
+
+  async triggerFeishuSync(): Promise<void> {
+    await this.fetch(`/api/feishu/sync`, { method: "POST" });
+  }
+
+  async getFeishuBitableFields(bitableId: string): Promise<BitableField[]> {
+    return this.fetch(`/api/feishu/bitable/${bitableId}/fields`);
+  }
+
+  async getFeishuMappings(): Promise<FeishuTaskMapping[]> {
+    return this.fetch(`/api/feishu/mappings`);
+  }
+
+  async deleteFeishuMapping(sourceType: string, feishuRecordId: string): Promise<void> {
+    await this.fetch(`/api/feishu/mappings/${sourceType}/${feishuRecordId}`, { method: "DELETE" });
   }
 }
