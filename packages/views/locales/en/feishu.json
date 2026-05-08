@@ -1,0 +1,30 @@
+{
+  "feishu": {
+    "title": "Feishu Task Sync",
+    "description": "Sync tasks assigned to me from Feishu Bitable or Tasks to Multica",
+    "credentials": "Feishu App Credentials",
+    "app_id": "App ID",
+    "app_secret": "App Secret",
+    "data_source": "Data Source",
+    "bitable": "Bitable",
+    "tasks": "Tasks",
+    "bitable_settings": "Bitable Settings",
+    "bitable_id": "Bitable ID",
+    "title_field": "Title Field",
+    "assignee_field": "Assignee Field",
+    "content_fields": "Content Fields (multiple)",
+    "sync_settings": "Sync Settings",
+    "sync_interval": "Sync Interval (minutes)",
+    "target_type": "Task Creation Target",
+    "personal": "Personal",
+    "project": "Project",
+    "enabled": "Enable Sync",
+    "webhook": "Webhook URL",
+    "webhook_hint": "Configure this URL in Feishu Open Platform as event subscription",
+    "save": "Save",
+    "saving": "Saving...",
+    "sync_now": "Sync Now",
+    "syncing": "Syncing...",
+    "last_sync": "Last Sync"
+  }
+}

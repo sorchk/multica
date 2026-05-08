@@ -1,0 +1,30 @@
+{
+  "feishu": {
+    "title": "飞书任务同步",
+    "description": "从飞书多维表格或任务视图同步分配给我的任务到 Multica",
+    "credentials": "飞书应用凭证",
+    "app_id": "App ID",
+    "app_secret": "App Secret",
+    "data_source": "数据源",
+    "bitable": "多维表格",
+    "tasks": "统一任务",
+    "bitable_settings": "多维表格设置",
+    "bitable_id": "多维表格 ID",
+    "title_field": "标题列",
+    "assignee_field": "负责人列",
+    "content_fields": "内容列（可多选）",
+    "sync_settings": "同步设置",
+    "sync_interval": "同步间隔（分钟）",
+    "target_type": "任务创建位置",
+    "personal": "个人任务",
+    "project": "指定项目",
+    "enabled": "启用同步",
+    "webhook": "Webhook 地址",
+    "webhook_hint": "在飞书开放平台配置此 URL 作为事件订阅地址",
+    "save": "保存",
+    "saving": "保存中...",
+    "sync_now": "立即同步",
+    "syncing": "同步中...",
+    "last_sync": "上次同步"
+  }
+}
