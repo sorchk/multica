@@ -25,7 +25,8 @@
       "general": "General",
       "repositories": "Repositories",
       "labs": "Labs",
-      "members": "Members"
+      "members": "Members",
+      "feishu": "Feishu"
     }
   },
   "account": {
@@ -208,5 +209,42 @@
         "description": "Create and work on issues"
       }
     }
+  },
+  "feishu": {
+    "title": "Feishu Integration",
+    "description": "Sync tasks from Feishu Bitable and Tasks to Multica",
+    "credentials": "App Credentials",
+    "app_id": "App ID",
+    "app_id_placeholder": "feishu app id",
+    "app_secret": "App Secret",
+    "app_secret_placeholder": "feishu app secret",
+    "data_source": "Data Source",
+    "bitable": "Bitable",
+    "tasks": "Feishu Tasks",
+    "bitable_settings": "Bitable Settings",
+    "bitable_id": "Bitable ID",
+    "bitable_id_placeholder": "feishu bitable id",
+    "title_field": "Title Field",
+    "assignee_field": "Assignee Field",
+    "content_fields": "Content Fields",
+    "sync_settings": "Sync Settings",
+    "sync_interval": "Sync Interval (minutes)",
+    "target_type": "Target Type",
+    "personal": "Personal",
+    "project": "Project",
+    "enabled": "Enabled",
+    "webhook": "Webhook URL",
+    "webhook_hint": "Configure this URL in Feishu Open Platform as webhook address",
+    "save": "Save",
+    "saving": "Saving...",
+    "sync_now": "Sync Now",
+    "syncing": "Syncing...",
+    "last_sync": "Last sync",
+    "loading_fields": "Loading fields...",
+    "toast_saved": "Feishu settings saved",
+    "toast_save_failed": "Failed to save Feishu settings",
+    "toast_load_fields_failed": "Failed to load Bitable fields",
+    "toast_sync_started": "Feishu sync started",
+    "toast_sync_failed": "Failed to trigger Feishu sync"
   }
 }
