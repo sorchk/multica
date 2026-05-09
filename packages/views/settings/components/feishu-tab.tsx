@@ -692,8 +692,10 @@ export function FeishuTab() {
                               const f = fields?.find((field) => field.field_name === v);
                               const newType = f?.type || 1;
                               const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
-                              const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
-                              updateFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
+                              const opExists = newOps.some((o) => o.value === cond.operator);
+                              const newOp = opExists ? cond.operator : newOps[0].value;
+                              const needsValueForNewOp = !NO_VALUE_OPERATORS.includes(newOp);
+                              updateFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValueForNewOp ? (opExists ? cond.value : "") : "" });
                             }}
                           >
                             <SelectTrigger className="flex-1">
@@ -852,8 +854,10 @@ export function FeishuTab() {
                             onValueChange={(v) => {
                               const newType = TASK_FIELD_TYPES[v] || 1;
                               const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
-                              const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
-                              updateTasksFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
+                              const opExists = newOps.some((o) => o.value === cond.operator);
+                              const newOp = opExists ? cond.operator : newOps[0].value;
+                              const needsValueForNewOp = !NO_VALUE_OPERATORS.includes(newOp);
+                              updateTasksFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValueForNewOp ? (opExists ? cond.value : "") : "" });
                             }}
                           >
                             <SelectTrigger className="flex-1">
