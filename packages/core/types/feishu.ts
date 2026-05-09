@@ -6,6 +6,7 @@ export interface FilterCondition {
 
 export interface FilterGroup {
   logic: "AND" | "OR";
+  outer_logic: "AND" | "OR";
   conditions: FilterCondition[];
 }
 

@@ -387,9 +387,16 @@ func evaluateFilter(fields map[string]interface{}, groups []FilterGroup) bool {
 	if len(groups) == 0 {
 		return true
 	}
-	for _, group := range groups {
-		if !evaluateGroup(fields, group) {
-			return false
+	passed := evaluateGroup(fields, groups[0])
+	for i := 1; i < len(groups); i++ {
+		groupResult := evaluateGroup(fields, groups[i])
+		outerLogic := groups[i-1].OuterLogic
+		if outerLogic == "OR" {
+			passed = passed || groupResult
+		} else { // AND
+			if !passed || !groupResult {
+				return false
+			}
 		}
 	}
 	return true

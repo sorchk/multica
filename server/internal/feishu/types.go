@@ -160,5 +160,6 @@ type FilterCondition struct {
 
 type FilterGroup struct {
 	Logic      string            `json:"logic"`
+	OuterLogic string            `json:"outer_logic"`
 	Conditions []FilterCondition `json:"conditions"`
 }

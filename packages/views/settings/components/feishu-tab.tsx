@@ -98,10 +98,17 @@ const TASK_FIELD_TYPES: Record<string, number> = {
 
 function evaluateFilterPreview(fields: Record<string, unknown>, groups: FilterGroup[]): boolean {
   if (!groups || groups.length === 0) return true;
-  for (const group of groups) {
-    if (!evaluateGroupPreview(fields, group)) return false;
+  let passed = evaluateGroupPreview(fields, groups[0]);
+  for (let i = 1; i < groups.length; i++) {
+    const groupResult = evaluateGroupPreview(fields, groups[i]);
+    const outerLogic = groups[i - 1].outer_logic;
+    if (outerLogic === "OR") {
+      passed = passed || groupResult;
+    } else {
+      if (!passed || !groupResult) return false;
+    }
   }
-  return true;
+  return passed;
 }
 
 function evaluateGroupPreview(fields: Record<string, unknown>, group: FilterGroup): boolean {
@@ -283,7 +290,7 @@ export function FeishuTab() {
       filter_config: {
         filter_groups: [
           ...groups,
-          { logic: "AND" as const, conditions: [] },
+          { logic: "AND" as const, outer_logic: "AND" as const, conditions: [] },
         ],
       },
     });
@@ -341,7 +348,7 @@ export function FeishuTab() {
       tasks_filter_config: {
         filter_groups: [
           ...groups,
-          { logic: "AND" as const, conditions: [] },
+          { logic: "AND" as const, outer_logic: "AND" as const, conditions: [] },
         ],
       },
     });
@@ -772,8 +779,8 @@ export function FeishuTab() {
                   {!isLast && (
                     <div className="flex items-center justify-center py-2">
                       <Select
-                        value={group.logic}
-                        onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                        value={group.outer_logic}
+                        onValueChange={(v) => updateFilterGroup(groupIndex, { outer_logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-20">
                           <SelectValue />
@@ -932,8 +939,8 @@ export function FeishuTab() {
                   {!isLast && (
                     <div className="flex items-center justify-center py-2">
                       <Select
-                        value={group.logic}
-                        onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                        value={group.outer_logic}
+                        onValueChange={(v) => updateTasksFilterGroup(groupIndex, { outer_logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-20">
                           <SelectValue />
