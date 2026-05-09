@@ -166,7 +166,7 @@ function evaluateConditionPreview(fields: Record<string, unknown>, cond: FilterC
 }
 
 export function FeishuTab() {
-  const { t } = useT("settings");
+  const { t } = useT("feishu");
   const workspace = useCurrentWorkspace();
 
   const [config, setConfig] = useState<Partial<FeishuUserConfig>>({
@@ -194,7 +194,7 @@ export function FeishuTab() {
       const flds = await api.getFeishuBitableFields(bitableId);
       setFields(flds);
     } catch {
-      toast.error(t(($) => $.feishu.toast_load_fields_failed));
+      toast.error(t(($) => $.toast_load_fields_failed));
     } finally {
       setFieldsLoading(false);
     }
@@ -221,9 +221,9 @@ export function FeishuTab() {
     setLoading(true);
     try {
       await api.saveFeishuConfig(config as FeishuUserConfig);
-      toast.success(t(($) => $.feishu.toast_saved));
+      toast.success(t(($) => $.toast_saved));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t(($) => $.feishu.toast_save_failed));
+      toast.error(e instanceof Error ? e.message : t(($) => $.toast_save_failed));
     } finally {
       setLoading(false);
     }
@@ -231,7 +231,7 @@ export function FeishuTab() {
 
   const handleTest = async () => {
     if (!config.app_id || !config.app_secret) {
-      toast.error(t(($) => $.feishu.toast_test_failed_no_creds));
+      toast.error(t(($) => $.toast_test_failed_no_creds));
       return;
     }
     setTesting(true);
@@ -239,10 +239,10 @@ export function FeishuTab() {
       const testBitableId = config.bitable_id || "test";
       const flds = await api.getFeishuBitableFields(testBitableId);
       if (flds !== null) {
-        toast.success(t(($) => $.feishu.toast_test_success));
+        toast.success(t(($) => $.toast_test_success));
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t(($) => $.feishu.toast_test_failed));
+      toast.error(e instanceof Error ? e.message : t(($) => $.toast_test_failed));
     } finally {
       setTesting(false);
     }
@@ -265,7 +265,7 @@ export function FeishuTab() {
 
   const handlePreview = async () => {
     if (!config.bitable_id) {
-      toast.error(t(($) => $.feishu.toast_preview_failed_no_bitable));
+      toast.error(t(($) => $.toast_preview_failed_no_bitable));
       return;
     }
     setPreviewLoading(true);
@@ -281,7 +281,7 @@ export function FeishuTab() {
       );
       setPreviewData(preview);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t(($) => $.feishu.toast_preview_failed));
+      toast.error(e instanceof Error ? e.message : t(($) => $.toast_preview_failed));
       setPreviewOpen(false);
     } finally {
       setPreviewLoading(false);
@@ -292,9 +292,9 @@ export function FeishuTab() {
     setSyncing(true);
     try {
       await api.triggerFeishuSync();
-      toast.success(t(($) => $.feishu.toast_sync_started));
+      toast.success(t(($) => $.toast_sync_started));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t(($) => $.feishu.toast_sync_failed));
+      toast.error(e instanceof Error ? e.message : t(($) => $.toast_sync_failed));
     } finally {
       setSyncing(false);
     }
@@ -493,9 +493,9 @@ export function FeishuTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">{t(($) => $.feishu.title)}</h2>
+          <h2 className="text-lg font-semibold">{t(($) => $.title)}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {t(($) => $.feishu.description)}
+            {t(($) => $.description)}
           </p>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setHelpOpen(true)}>
@@ -505,26 +505,26 @@ export function FeishuTab() {
 
       <Card>
         <CardContent className="space-y-4 pt-4">
-          <h3 className="text-sm font-medium">{t(($) => $.feishu.credentials)}</h3>
+          <h3 className="text-sm font-medium">{t(($) => $.credentials)}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="app-id">{t(($) => $.feishu.app_id)}</Label>
+              <Label htmlFor="app-id">{t(($) => $.app_id)}</Label>
               <Input
                 id="app-id"
                 type="text"
                 value={config.app_id || ""}
                 onChange={(e) => setConfig({ ...config, app_id: e.target.value })}
-                placeholder={t(($) => $.feishu.app_id_placeholder)}
+                placeholder={t(($) => $.app_id_placeholder)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="app-secret">{t(($) => $.feishu.app_secret)}</Label>
+              <Label htmlFor="app-secret">{t(($) => $.app_secret)}</Label>
               <Input
                 id="app-secret"
                 type="password"
                 value={config.app_secret || ""}
                 onChange={(e) => setConfig({ ...config, app_secret: e.target.value })}
-                placeholder={t(($) => $.feishu.app_secret_placeholder)}
+                placeholder={t(($) => $.app_secret_placeholder)}
               />
             </div>
           </div>
@@ -535,7 +535,7 @@ export function FeishuTab() {
               onClick={handleTest}
               disabled={testing || !config.app_id || !config.app_secret}
             >
-              {testing ? t(($) => $.feishu.testing) : t(($) => $.feishu.test_credentials)}
+              {testing ? t(($) => $.testing) : t(($) => $.test_credentials)}
             </Button>
           </div>
         </CardContent>
@@ -543,7 +543,7 @@ export function FeishuTab() {
 
       <Card>
         <CardContent className="space-y-4 pt-4">
-          <h3 className="text-sm font-medium">{t(($) => $.feishu.data_source)}</h3>
+          <h3 className="text-sm font-medium">{t(($) => $.data_source)}</h3>
           <div className="flex gap-6">
             <div className="flex items-center gap-2">
               <Checkbox
@@ -552,7 +552,7 @@ export function FeishuTab() {
                 onCheckedChange={handleBitableToggle}
               />
               <Label htmlFor="bitable-source" className="font-normal cursor-pointer">
-                {t(($) => $.feishu.bitable)}
+                {t(($) => $.bitable)}
               </Label>
             </div>
             <div className="flex items-center gap-2">
@@ -562,7 +562,7 @@ export function FeishuTab() {
                 onCheckedChange={handleTasksToggle}
               />
               <Label htmlFor="tasks-source" className="font-normal cursor-pointer">
-                {t(($) => $.feishu.tasks)}
+                {t(($) => $.tasks)}
               </Label>
             </div>
           </div>
@@ -572,10 +572,10 @@ export function FeishuTab() {
       {showBitableSettings && (
         <Card>
           <CardContent className="space-y-4 pt-4">
-            <h3 className="text-sm font-medium">{t(($) => $.feishu.bitable_settings)}</h3>
+            <h3 className="text-sm font-medium">{t(($) => $.bitable_settings)}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="bitable-id">{t(($) => $.feishu.bitable_id)}</Label>
+                <Label htmlFor="bitable-id">{t(($) => $.bitable_id)}</Label>
                 <Input
                   id="bitable-id"
                   type="text"
@@ -586,11 +586,11 @@ export function FeishuTab() {
                       loadFields(e.target.value);
                     }
                   }}
-                  placeholder={t(($) => $.feishu.bitable_id_placeholder)}
+                  placeholder={t(($) => $.bitable_id_placeholder)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="title-field">{t(($) => $.feishu.title_field)}</Label>
+                <Label htmlFor="title-field">{t(($) => $.title_field)}</Label>
                 <Select
                   value={config.title_field || ""}
                   onValueChange={(v) => setConfig({ ...config, title_field: v || undefined })}
@@ -609,7 +609,7 @@ export function FeishuTab() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="assignee-field">{t(($) => $.feishu.assignee_field)}</Label>
+                <Label htmlFor="assignee-field">{t(($) => $.assignee_field)}</Label>
                 <Select
                   value={config.assignee_field || ""}
                   onValueChange={(v) => setConfig({ ...config, assignee_field: v || undefined })}
@@ -631,7 +631,7 @@ export function FeishuTab() {
 
             {fields && fields.length > 0 && (
               <div className="space-y-1.5">
-                <Label>{t(($) => $.feishu.content_fields)}</Label>
+                <Label>{t(($) => $.content_fields)}</Label>
                 <div className="flex flex-wrap gap-3">
                   {fields?.map((f) => (
                     <div key={f.field_id} className="flex items-center gap-1.5">
@@ -649,23 +649,23 @@ export function FeishuTab() {
               </div>
             )}
 {fieldsLoading && (
-              <p className="text-xs text-muted-foreground">{t(($) => $.feishu.loading_fields)}</p>
+              <p className="text-xs text-muted-foreground">{t(($) => $.loading_fields)}</p>
             )}
             {config.bitable_id && fields && fields.length > 0 && (
               <Button variant="outline" size="sm" onClick={handlePreview}>
-                {t(($) => $.feishu.preview_tasks)}
+                {t(($) => $.preview_tasks)}
               </Button>
             )}
 
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">{t(($) => $.feishu.filter_conditions)}</h3>
+              <h3 className="text-sm font-medium">{t(($) => $.filter_conditions)}</h3>
               <Button variant="outline" size="sm" onClick={addFilterGroup}>
-                {t(($) => $.feishu.add_filter_group)}
+                {t(($) => $.add_filter_group)}
               </Button>
             </div>
 
             {(config.filter_config?.filter_groups || []).length === 0 && (
-              <p className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_conditions_hint)}</p>
+              <p className="text-xs text-muted-foreground">{t(($) => $.filter_conditions_hint)}</p>
             )}
 
             {(config.filter_config?.filter_groups || []).map((group, groupIndex) => {
@@ -674,7 +674,7 @@ export function FeishuTab() {
                 <div key={groupIndex}>
                   <div className="border rounded-lg p-3 space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
+                      <span className="text-xs text-muted-foreground">{t(($) => $.filter_group_logic)}</span>
                       <Select
                         value={group.logic || "AND"}
                         onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
@@ -683,8 +683,8 @@ export function FeishuTab() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
-                          <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
+                          <SelectItem value="AND">{t(($) => $.filter_and)}</SelectItem>
+                          <SelectItem value="OR">{t(($) => $.filter_or)}</SelectItem>
                         </SelectContent>
                       </Select>
                       <Button
@@ -693,7 +693,7 @@ export function FeishuTab() {
                         className="ml-auto text-xs text-destructive"
                         onClick={() => removeFilterGroup(groupIndex)}
                       >
-                        {t(($) => $.feishu.delete_group)}
+                        {t(($) => $.delete_group)}
                       </Button>
                     </div>
 
@@ -718,7 +718,7 @@ export function FeishuTab() {
                             }}
                           >
                             <SelectTrigger className="flex-1">
-                              <SelectValue placeholder={t(($) => $.feishu.select_field)} />
+                              <SelectValue placeholder={t(($) => $.select_field)} />
                             </SelectTrigger>
                             <SelectContent>
                               {(fields || []).map((f) => (
@@ -762,8 +762,8 @@ export function FeishuTab() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
-                                  <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
+                                  <SelectItem value="true">{t(($) => $.yes)}</SelectItem>
+                                  <SelectItem value="false">{t(($) => $.no)}</SelectItem>
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -771,7 +771,7 @@ export function FeishuTab() {
                                 className="flex-1"
                                 value={cond.value as string || ""}
                                 onChange={(e) => updateFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                                placeholder={t(($) => $.feishu.enter_value)}
+                                placeholder={t(($) => $.enter_value)}
                               />
                             )
                           )}
@@ -794,7 +794,7 @@ export function FeishuTab() {
                       className="text-xs"
                       onClick={() => addFilterCondition(groupIndex)}
                     >
-                      {t(($) => $.feishu.add_condition)}
+                      {t(($) => $.add_condition)}
                     </Button>
                   </div>
                   {!isLast && (
@@ -824,13 +824,13 @@ export function FeishuTab() {
         <Card>
           <CardContent className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">{t(($) => $.feishu.tasks_filter_conditions)}</h3>
+              <h3 className="text-sm font-medium">{t(($) => $.tasks_filter_conditions)}</h3>
               <Button variant="outline" size="sm" onClick={addTasksFilterGroup}>
-                {t(($) => $.feishu.add_filter_group)}
+                {t(($) => $.add_filter_group)}
               </Button>
             </div>
 
-            <p className="text-xs text-muted-foreground">{t(($) => $.feishu.tasks_filter_conditions_hint)}</p>
+            <p className="text-xs text-muted-foreground">{t(($) => $.tasks_filter_conditions_hint)}</p>
 
             {(config.tasks_filter_config?.filter_groups || []).map((group, groupIndex) => {
               const isLast = groupIndex === (config.tasks_filter_config?.filter_groups?.length || 0) - 1;
@@ -838,7 +838,7 @@ export function FeishuTab() {
                 <div key={groupIndex}>
                   <div className="border rounded-lg p-3 space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
+                      <span className="text-xs text-muted-foreground">{t(($) => $.filter_group_logic)}</span>
                       <Select
                         value={group.logic || "AND"}
                         onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
@@ -847,8 +847,8 @@ export function FeishuTab() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
-                          <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
+                          <SelectItem value="AND">{t(($) => $.filter_and)}</SelectItem>
+                          <SelectItem value="OR">{t(($) => $.filter_or)}</SelectItem>
                         </SelectContent>
                       </Select>
                       <Button
@@ -857,7 +857,7 @@ export function FeishuTab() {
                         className="ml-auto text-xs text-destructive"
                         onClick={() => removeTasksFilterGroup(groupIndex)}
                       >
-                        {t(($) => $.feishu.delete_group)}
+                        {t(($) => $.delete_group)}
                       </Button>
                     </div>
 
@@ -880,7 +880,7 @@ export function FeishuTab() {
                             }}
                           >
                             <SelectTrigger className="flex-1">
-                              <SelectValue placeholder={t(($) => $.feishu.select_field)} />
+                              <SelectValue placeholder={t(($) => $.select_field)} />
                             </SelectTrigger>
                             <SelectContent>
                               {TASK_FIELD_NAMES.map((f) => (
@@ -924,8 +924,8 @@ export function FeishuTab() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
-                                  <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
+                                  <SelectItem value="true">{t(($) => $.yes)}</SelectItem>
+                                  <SelectItem value="false">{t(($) => $.no)}</SelectItem>
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -933,7 +933,7 @@ export function FeishuTab() {
                                 className="flex-1"
                                 value={cond.value as string || ""}
                                 onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                                placeholder={t(($) => $.feishu.enter_value)}
+                                placeholder={t(($) => $.enter_value)}
                               />
                             )
                           )}
@@ -956,7 +956,7 @@ export function FeishuTab() {
                       className="text-xs"
                       onClick={() => addTasksFilterCondition(groupIndex)}
                     >
-                      {t(($) => $.feishu.add_condition)}
+                      {t(($) => $.add_condition)}
                     </Button>
                   </div>
                   {!isLast && (
@@ -984,40 +984,76 @@ export function FeishuTab() {
 
       <Card>
         <CardContent className="space-y-3 pt-4">
-          <h3 className="text-sm font-medium">{t(($) => $.feishu.webhook)}</h3>
+          <h3 className="text-sm font-medium">{t(($) => $.auto_sync)}</h3>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-sync-enabled">{t(($) => $.auto_sync_enabled)}</Label>
+              <p className="text-xs text-muted-foreground">{t(($) => $.auto_sync_enabled_hint)}</p>
+            </div>
+            <Switch
+              id="auto-sync-enabled"
+              checked={config.enabled ?? false}
+              onCheckedChange={(checked) => setConfig({ ...config, enabled: checked })}
+            />
+          </div>
+          {config.enabled && (
+            <div className="space-y-1.5">
+              <Label htmlFor="sync-interval">{t(($) => $.sync_interval)}</Label>
+              <Select
+                value={String(config.sync_interval_minutes || 15)}
+                onValueChange={(v) => setConfig({ ...config, sync_interval_minutes: Number(v) })}
+              >
+                <SelectTrigger id="sync-interval" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">{t(($) => $.interval_5min)}</SelectItem>
+                  <SelectItem value="15">{t(($) => $.interval_15min)}</SelectItem>
+                  <SelectItem value="30">{t(($) => $.interval_30min)}</SelectItem>
+                  <SelectItem value="60">{t(($) => $.interval_60min)}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 pt-4">
+          <h3 className="text-sm font-medium">{t(($) => $.webhook)}</h3>
           <div className="p-3 bg-muted rounded font-mono text-sm break-all">
             {webhookUrl}
           </div>
           <p className="text-xs text-muted-foreground">
-            {t(($) => $.feishu.webhook_hint)}
+            {t(($) => $.webhook_hint)}
           </p>
         </CardContent>
       </Card>
 
       <div className="flex gap-3">
         <Button onClick={handleSave} disabled={loading}>
-          {loading ? t(($) => $.feishu.saving) : t(($) => $.feishu.save)}
+          {loading ? t(($) => $.saving) : t(($) => $.save)}
         </Button>
         <Button variant="outline" onClick={handleSync} disabled={syncing}>
-          {syncing ? t(($) => $.feishu.syncing) : t(($) => $.feishu.sync_now)}
+          {syncing ? t(($) => $.syncing) : t(($) => $.sync_now)}
         </Button>
       </div>
 
       {config.last_sync_at && (
         <p className="text-xs text-muted-foreground">
-          {t(($) => $.feishu.last_sync)}: {new Date(config.last_sync_at).toLocaleString()}
+          {t(($) => $.last_sync)}: {new Date(config.last_sync_at).toLocaleString()}
         </p>
       )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t(($) => $.feishu.preview_title)}</DialogTitle>
+            <DialogTitle>{t(($) => $.preview_title)}</DialogTitle>
           </DialogHeader>
           {previewLoading ? (
-            <p className="text-sm text-muted-foreground">{t(($) => $.feishu.loading_preview)}</p>
+            <p className="text-sm text-muted-foreground">{t(($) => $.loading_preview)}</p>
           ) : previewData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t(($) => $.feishu.no_records)}</p>
+            <p className="text-sm text-muted-foreground">{t(($) => $.no_records)}</p>
           ) : (
             <div className="space-y-4">
               {previewData.map((item, idx) => (
@@ -1026,7 +1062,7 @@ export function FeishuTab() {
                     <div className="font-medium">{item.title || "(无标题)"}</div>
                     {item.assignee && (
                       <p className="text-xs text-muted-foreground">
-                        {t(($) => $.feishu.assignee)}: {item.assignee}
+                        {t(($) => $.assignee)}: {item.assignee}
                       </p>
                     )}
                     {item.content && (
@@ -1043,45 +1079,44 @@ export function FeishuTab() {
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t(($) => $.feishu.help_title)}</DialogTitle>
+            <DialogTitle>{t(($) => $.help_title)}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 text-sm">
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_permissions_title)}</h4>
-              <p className="text-muted-foreground mb-2">{t(($) => $.feishu.help_permissions_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_permissions_title)}</h4>
+              <p className="text-muted-foreground mb-2">{t(($) => $.help_permissions_desc)}</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li><code>bitable:app</code> - {t(($) => $.feishu.help_perm_bitable)}</li>
-                <li><code>task:app:readonly</code> - {t(($) => $.feishu.help_perm_task)}</li>
-                <li><code>contact:contact:readonly</code> - {t(($) => $.feishu.help_perm_contact)}</li>
+                <li><code>bitable:app</code> - {t(($) => $.help_perm_bitable)}</li>
+                <li><code>task:app:readonly</code> - {t(($) => $.help_perm_task)}</li>
               </ul>
             </section>
 
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_app_id_title)}</h4>
-              <p className="text-muted-foreground">{t(($) => $.feishu.help_app_id_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_app_id_title)}</h4>
+              <p className="text-muted-foreground">{t(($) => $.help_app_id_desc)}</p>
             </section>
 
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_app_secret_title)}</h4>
-              <p className="text-muted-foreground">{t(($) => $.feishu.help_app_secret_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_app_secret_title)}</h4>
+              <p className="text-muted-foreground">{t(($) => $.help_app_secret_desc)}</p>
             </section>
 
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_bitable_id_title)}</h4>
-              <p className="text-muted-foreground">{t(($) => $.feishu.help_bitable_id_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_bitable_id_title)}</h4>
+              <p className="text-muted-foreground">{t(($) => $.help_bitable_id_desc)}</p>
               <p className="text-muted-foreground mt-1">
                 <code>https://xxx.feishu.cn/base/</code><span className="bg-muted px-1">L6X0bz3awasV8ssuSxMcN00hn6b</span><code>?table=</code><span className="bg-muted px-1">tblxxx</span>
               </p>
             </section>
 
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_field_mapping_title)}</h4>
-              <p className="text-muted-foreground">{t(($) => $.feishu.help_field_mapping_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_field_mapping_title)}</h4>
+              <p className="text-muted-foreground">{t(($) => $.help_field_mapping_desc)}</p>
             </section>
 
             <section>
-              <h4 className="font-medium mb-2">{t(($) => $.feishu.help_webhook_title)}</h4>
-              <p className="text-muted-foreground">{t(($) => $.feishu.help_webhook_desc)}</p>
+              <h4 className="font-medium mb-2">{t(($) => $.help_webhook_title)}</h4>
+              <p className="text-muted-foreground">{t(($) => $.help_webhook_desc)}</p>
             </section>
           </div>
         </DialogContent>

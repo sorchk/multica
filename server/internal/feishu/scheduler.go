@@ -45,6 +45,10 @@ func (s *Scheduler) ScheduleJob(userID, workspaceID pgtype.UUID, intervalMinutes
 
 	spec := fmt.Sprintf("*/%d * * * *", intervalMinutes)
 	entryID, _ := s.cron.AddFunc(spec, func() {
+		cfg, err := s.configStore.GetByUserAndWorkspace(context.Background(), userID, workspaceID)
+		if err != nil || cfg == nil || !cfg.Enabled {
+			return
+		}
 		s.syncService.SyncUserFeishuData(context.Background(), userID, workspaceID)
 	})
 	s.jobs[key] = entryID

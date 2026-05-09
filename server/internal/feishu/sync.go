@@ -38,10 +38,6 @@ func (s *SyncService) SyncUserFeishuData(ctx context.Context, userID, workspaceI
 		slog.Error("sync: config is nil")
 		return fmt.Errorf("config is nil")
 	}
-	if !cfg.Enabled {
-		slog.Error("sync: config disabled", "user_id", userID)
-		return fmt.Errorf("config disabled")
-	}
 	slog.Info("sync: config loaded", "data_source", cfg.DataSource, "bitable_id", cfg.BitableID, "title_field", cfg.TitleField, "assignee_field", cfg.AssigneeField)
 
 	user, err := s.queries.GetUser(ctx, userID)
