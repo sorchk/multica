@@ -718,7 +718,7 @@ export function FeishuTab() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {operators.map((op) => (
+                              {[...operators, { value: cond.operator, label: operators.find(o => o.value === cond.operator)?.label || cond.operator }].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i).map((op) => (
                                 <SelectItem key={op.value} value={op.value}>
                                   {op.label}
                                 </SelectItem>
@@ -880,7 +880,7 @@ export function FeishuTab() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {operators.map((op) => (
+                              {[...operators, { value: cond.operator, label: operators.find(o => o.value === cond.operator)?.label || cond.operator }].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i).map((op) => (
                                 <SelectItem key={op.value} value={op.value}>
                                   {op.label}
                                 </SelectItem>
