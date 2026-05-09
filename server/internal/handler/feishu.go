@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -39,17 +39,6 @@ func encrypt(plaintext string) string {
 		return ""
 	}
 	return base64.StdEncoding.EncodeToString([]byte(plaintext))
-}
-
-func decrypt(ciphertext string) (string, error) {
-	if ciphertext == "" {
-		return "", nil
-	}
-	data, err := base64.StdEncoding.DecodeString(ciphertext)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 func (h *FeishuHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
@@ -95,6 +84,7 @@ func (h *FeishuHandler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 		TargetProjectID     string   `json:"target_project_id"`
 		SyncIntervalMinutes int      `json:"sync_interval_minutes"`
 		Enabled             bool     `json:"enabled"`
+		FilterConfig        json.RawMessage `json:"filter_config"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -134,6 +124,7 @@ func (h *FeishuHandler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 		cfg.AssigneeField = &req.AssigneeField
 	}
 	cfg.ContentFields = req.ContentFields
+	cfg.FilterConfig = req.FilterConfig
 
 	if err := h.configStore.Upsert(r.Context(), cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -171,9 +162,11 @@ func (h *FeishuHandler) TriggerSync(w http.ResponseWriter, r *http.Request) {
 	userUUID, _ := util.ParseUUID(userID)
 	wsUUID, _ := util.ParseUUID(workspaceID)
 
-	go h.syncService.SyncUserFeishuData(context.Background(), userUUID, wsUUID)
-
-	writeJSON(w, http.StatusOK, map[string]string{"status": "sync started"})
+	err := h.syncService.SyncUserFeishuData(r.Context(), userUUID, wsUUID)
+	if err != nil {
+		slog.Error("sync failed", "error", err)
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "done"})
 }
 
 func (h *FeishuHandler) GetBitableFields(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +191,12 @@ func (h *FeishuHandler) GetBitableFields(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	token, err := h.tokenManager.GetToken(r.Context(), cfg.AppID, cfg.AppSecretEncrypted)
+	secret, err := feishu.DecryptSecret(cfg.AppSecretEncrypted)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to decrypt secret: "+err.Error())
+		return
+	}
+	token, err := h.tokenManager.GetToken(r.Context(), cfg.AppID, secret)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get token: "+err.Error())
 		return
@@ -215,6 +213,88 @@ func (h *FeishuHandler) GetBitableFields(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, fields)
 }
 
+func (h *FeishuHandler) GetBitableRecords(w http.ResponseWriter, r *http.Request) {
+	bitableID := chi.URLParam(r, "bitableId")
+	if bitableID == "" {
+		writeError(w, http.StatusBadRequest, "bitable_id required")
+		return
+	}
+
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := h.resolveWorkspaceID(r)
+
+	userUUID, _ := util.ParseUUID(userID)
+	wsUUID, _ := util.ParseUUID(workspaceID)
+
+	cfg, err := h.configStore.GetByUserAndWorkspace(r.Context(), userUUID, wsUUID)
+	if err != nil || cfg == nil {
+		writeError(w, http.StatusBadRequest, "feishu not configured")
+		return
+	}
+
+	secret, err := feishu.DecryptSecret(cfg.AppSecretEncrypted)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to decrypt secret: "+err.Error())
+		return
+	}
+	token, err := h.tokenManager.GetToken(r.Context(), cfg.AppID, secret)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get token: "+err.Error())
+		return
+	}
+
+	bitable := feishu.NewBitableClient(bitableID, token)
+
+	records, err := bitable.GetRecords(r.Context(), 10, "")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, records.Data.Items)
+}
+
 func (h *FeishuHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Implementation in webhook.go
+}
+
+func (h *FeishuHandler) ListFeishuMappings(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := h.resolveWorkspaceID(r)
+
+	cfg, err := h.configStore.GetByUserAndWorkspace(r.Context(), util.MustParseUUID(userID), util.MustParseUUID(workspaceID))
+	if err != nil || cfg == nil {
+		writeError(w, http.StatusBadRequest, "feishu not configured")
+		return
+	}
+
+	// TODO: Implement listing mappings from configStore
+	_, _ = cfg, err
+	writeJSON(w, http.StatusOK, []feishu.FeishuTaskMapping{})
+}
+
+func (h *FeishuHandler) DeleteFeishuMapping(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := h.resolveWorkspaceID(r)
+
+	sourceType := chi.URLParam(r, "sourceType")
+	feishuRecordID := chi.URLParam(r, "feishuRecordId")
+
+	if sourceType == "" || feishuRecordID == "" {
+		writeError(w, http.StatusBadRequest, "source_type and feishu_record_id required")
+		return
+	}
+
+	// TODO: Implement delete mapping from configStore
+	_, _ = userID, workspaceID
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

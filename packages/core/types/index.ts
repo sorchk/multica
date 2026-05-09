@@ -86,4 +86,4 @@ export type {
   GetAutopilotResponse,
   ListAutopilotRunsResponse,
 } from "./autopilot";
-export type { FeishuUserConfig, FeishuTaskMapping, BitableField } from "./feishu";
+export type { FeishuUserConfig, FeishuTaskMapping, BitableField, FilterCondition, FilterGroup, FilterConfig } from "./feishu";

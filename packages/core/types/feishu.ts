@@ -1,3 +1,18 @@
+export interface FilterCondition {
+  field: string;
+  operator: string;
+  value: string | string[] | boolean | null;
+}
+
+export interface FilterGroup {
+  logic: "AND" | "OR";
+  conditions: FilterCondition[];
+}
+
+export interface FilterConfig {
+  filter_groups: FilterGroup[];
+}
+
 export interface FeishuUserConfig {
   id: string;
   user_id: string;
@@ -14,6 +29,7 @@ export interface FeishuUserConfig {
   sync_interval_minutes: number;
   last_sync_at?: string;
   enabled: boolean;
+  filter_config: FilterConfig;
 }
 
 export interface FeishuTaskMapping {

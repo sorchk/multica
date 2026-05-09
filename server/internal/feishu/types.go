@@ -1,6 +1,7 @@
 package feishu
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,9 +20,10 @@ type FeishuUserConfig struct {
 	ContentFields        []string     `json:"content_fields"`
 	TargetType           string       `json:"target_type"`
 	TargetProjectID      *pgtype.UUID `json:"target_project_id"`
-	SyncIntervalMinutes  int         `json:"sync_interval_minutes"`
+	SyncIntervalMinutes  int          `json:"sync_interval_minutes"`
 	LastSyncAt           *time.Time   `json:"last_sync_at"`
 	Enabled              bool         `json:"enabled"`
+	FilterConfig         json.RawMessage `json:"filter_config"`
 	CreatedAt            time.Time    `json:"created_at"`
 	UpdatedAt            time.Time    `json:"updated_at"`
 }
@@ -59,6 +61,21 @@ type BitableData struct {
 type BitablePage struct {
 	Total    int `json:"total"`
 	PageSize int `json:"page_size"`
+}
+
+type BitableTable struct {
+	TableID   string `json:"table_id"`
+	Name      string `json:"name"`
+	DateCreated string `json:"date_created"`
+	DateModified string `json:"date_modified"`
+}
+
+type BitableTablesResponse struct {
+	Code int `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		Items []BitableTable `json:"items"`
+	} `json:"data"`
 }
 
 type FeishuTask struct {
@@ -132,4 +149,15 @@ type TaskEventData struct {
 	OpenID    string `json:"open_id"`
 	ActorID   string `json:"actor_id"`
 	EventType string `json:"event_type"`
+}
+
+type FilterCondition struct {
+	Field    string      `json:"field"`
+	Operator string      `json:"operator"`
+	Value    interface{} `json:"value"`
+}
+
+type FilterGroup struct {
+	Logic      string            `json:"logic"`
+	Conditions []FilterCondition `json:"conditions"`
 }

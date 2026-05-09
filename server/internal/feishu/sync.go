@@ -2,8 +2,10 @@ package feishu
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -26,10 +28,21 @@ func NewSyncService(configStore *ConfigStore, tokenManager *TokenManager, querie
 }
 
 func (s *SyncService) SyncUserFeishuData(ctx context.Context, userID, workspaceID pgtype.UUID) error {
+	slog.Info("sync: starting", "user_id", userID, "workspace_id", workspaceID)
 	cfg, err := s.configStore.GetByUserAndWorkspace(ctx, userID, workspaceID)
-	if err != nil || cfg == nil || !cfg.Enabled {
-		return fmt.Errorf("no config or disabled")
+	if err != nil {
+		slog.Error("sync: config fetch error", "error", err)
+		return fmt.Errorf("config fetch error: %w", err)
 	}
+	if cfg == nil {
+		slog.Error("sync: config is nil")
+		return fmt.Errorf("config is nil")
+	}
+	if !cfg.Enabled {
+		slog.Error("sync: config disabled", "user_id", userID)
+		return fmt.Errorf("config disabled")
+	}
+	slog.Info("sync: config loaded", "data_source", cfg.DataSource, "bitable_id", cfg.BitableID, "title_field", cfg.TitleField, "assignee_field", cfg.AssigneeField)
 
 	user, err := s.queries.GetUser(ctx, userID)
 	if err != nil {
@@ -37,12 +50,19 @@ func (s *SyncService) SyncUserFeishuData(ctx context.Context, userID, workspaceI
 	}
 	userEmail := user.Email
 
-	token, err := s.tokenManager.GetToken(ctx, cfg.AppID, cfg.AppSecretEncrypted)
+	secret, err := DecryptSecret(cfg.AppSecretEncrypted)
 	if err != nil {
+		return fmt.Errorf("failed to decrypt secret: %w", err)
+	}
+	token, err := s.tokenManager.GetToken(ctx, cfg.AppID, secret)
+	if err != nil {
+		slog.Error("sync: failed to get token", "error", err)
 		return fmt.Errorf("failed to get token: %w", err)
 	}
+	slog.Info("sync: token obtained, starting bitable/tasks sync", "data_source", cfg.DataSource)
 
 	if strings.Contains(cfg.DataSource, "bitable") && cfg.BitableID != nil {
+		slog.Info("sync: calling syncBitable", "bitable_id", *cfg.BitableID)
 		if err := s.syncBitable(ctx, cfg, token, userEmail); err != nil {
 			slog.Error("bitable sync failed", "error", err)
 		}
@@ -60,26 +80,42 @@ func (s *SyncService) SyncUserFeishuData(ctx context.Context, userID, workspaceI
 
 func (s *SyncService) syncBitable(ctx context.Context, cfg *FeishuUserConfig, token, userEmail string) error {
 	bitable := NewBitableClient(*cfg.BitableID, token)
+	contactClient := NewContactClient(token)
 
 	resp, err := bitable.GetRecords(ctx, 100, "")
 	if err != nil {
 		return fmt.Errorf("failed to fetch bitable records: %w", err)
 	}
 
+	var filterGroups []FilterGroup
+	if len(cfg.FilterConfig) > 0 {
+		json.Unmarshal(cfg.FilterConfig, &filterGroups)
+	}
+
+	slog.Info("bitable sync: fetched records", "count", len(resp.Data.Items), "bitable_id", *cfg.BitableID)
+
 	for _, record := range resp.Data.Items {
-		assignee := s.extractFieldValue(record.Fields, cfg.AssigneeField)
-		if !s.isAssignedToUser(assignee, userEmail) {
+		slog.Info("bitable sync: checking record", "record_id", record.RecordID, "fields", fmt.Sprintf("%v", record.Fields))
+
+		if !s.shouldSyncRecord(ctx, record.Fields, cfg.AssigneeField, userEmail, contactClient, filterGroups) {
+			slog.Info("bitable sync: skipping record (assignee mismatch)", "record_id", record.RecordID)
 			continue
 		}
 
+		matchedUserID := s.findMatchingUser(ctx, record.Fields, cfg.AssigneeField, userEmail, contactClient)
+		slog.Info("bitable sync: matched user", "record_id", record.RecordID, "matched", matchedUserID.Valid)
+
 		title := s.extractFieldValue(record.Fields, cfg.TitleField)
 		content := s.extractContentFields(record.Fields, cfg.ContentFields)
+		slog.Info("bitable sync: creating issue", "record_id", record.RecordID, "title", title)
 
-		issueID, err := s.createOrUpdateIssue(ctx, cfg, record.RecordID, title, content)
+		issueID, err := s.createOrUpdateIssue(ctx, cfg, record.RecordID, title, content, matchedUserID)
 		if err != nil {
 			slog.Error("failed to sync record", "record_id", record.RecordID, "error", err)
 			continue
 		}
+
+		slog.Info("bitable sync: issue created", "record_id", record.RecordID, "issue_id", issueID)
 
 		mapping := &FeishuTaskMapping{
 			ID:             pgtype.UUID{Bytes: uuid.New(), Valid: true},
@@ -95,6 +131,91 @@ func (s *SyncService) syncBitable(ctx context.Context, cfg *FeishuUserConfig, to
 	return nil
 }
 
+func (s *SyncService) shouldSyncRecord(ctx context.Context, fields map[string]interface{}, assigneeField *string, userEmail string, contactClient *ContactClient, filterGroups []FilterGroup) bool {
+	if len(filterGroups) > 0 {
+		if !evaluateFilter(fields, filterGroups) {
+			return false
+		}
+	}
+
+	if assigneeField == nil {
+		return true
+	}
+
+	val, ok := fields[*assigneeField]
+	if !ok {
+		return true
+	}
+
+	if str, ok := val.(string); ok {
+		return strings.Contains(strings.ToLower(str), strings.ToLower(userEmail))
+	}
+
+	assigneeInfo := s.extractAssigneeInfoFromField(val)
+	if assigneeInfo == nil {
+		return true
+	}
+
+	for _, person := range assigneeInfo.Persons {
+		feishuUser, err := contactClient.GetUserByOpenID(ctx, person.ID)
+		if err != nil {
+			slog.Warn("failed to get feishu user info", "open_id", person.ID, "error", err)
+			continue
+		}
+		if strings.EqualFold(feishuUser.Data.User.Email, userEmail) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *SyncService) findMatchingUser(ctx context.Context, fields map[string]interface{}, assigneeField *string, userEmail string, contactClient *ContactClient) pgtype.UUID {
+	if assigneeField == nil {
+		return pgtype.UUID{}
+	}
+
+	val, ok := fields[*assigneeField]
+	if !ok {
+		return pgtype.UUID{}
+	}
+
+	if str, ok := val.(string); ok {
+		if strings.Contains(strings.ToLower(str), strings.ToLower(userEmail)) {
+			user, err := s.queries.GetUserByEmail(ctx, userEmail)
+			if err != nil {
+				slog.Warn("failed to find multica user by email", "email", userEmail, "error", err)
+				return pgtype.UUID{}
+			}
+			return user.ID
+		}
+		return pgtype.UUID{}
+	}
+
+	assigneeInfo := s.extractAssigneeInfoFromField(val)
+	if assigneeInfo == nil {
+		return pgtype.UUID{}
+	}
+
+	for _, person := range assigneeInfo.Persons {
+		feishuUser, err := contactClient.GetUserByOpenID(ctx, person.ID)
+		if err != nil {
+			slog.Warn("failed to get feishu user info", "open_id", person.ID, "error", err)
+			continue
+		}
+		if strings.EqualFold(feishuUser.Data.User.Email, userEmail) {
+			user, err := s.queries.GetUserByEmail(ctx, userEmail)
+			if err != nil {
+				slog.Warn("failed to find multica user by email", "email", userEmail, "error", err)
+				continue
+			}
+			return user.ID
+		}
+	}
+
+	return pgtype.UUID{}
+}
+
 func (s *SyncService) syncTasks(ctx context.Context, cfg *FeishuUserConfig, token, userEmail string) error {
 	tasksClient := NewTasksClient(token)
 
@@ -104,7 +225,7 @@ func (s *SyncService) syncTasks(ctx context.Context, cfg *FeishuUserConfig, toke
 	}
 
 	for _, task := range resp.Data.Items {
-		issueID, err := s.createOrUpdateIssue(ctx, cfg, task.GUID, task.Summary, task.Description)
+		issueID, err := s.createOrUpdateIssue(ctx, cfg, task.GUID, task.Summary, task.Description, pgtype.UUID{})
 		if err != nil {
 			slog.Error("failed to sync task", "task_guid", task.GUID, "error", err)
 			continue
@@ -125,7 +246,7 @@ func (s *SyncService) syncTasks(ctx context.Context, cfg *FeishuUserConfig, toke
 	return nil
 }
 
-func (s *SyncService) createOrUpdateIssue(ctx context.Context, cfg *FeishuUserConfig, recordID, title, content string) (pgtype.UUID, error) {
+func (s *SyncService) createOrUpdateIssue(ctx context.Context, cfg *FeishuUserConfig, recordID, title, content string, assigneeID pgtype.UUID) (pgtype.UUID, error) {
 	mapping, err := s.configStore.GetMapping(ctx, cfg.UserID, cfg.WorkspaceID, "bitable", recordID)
 	if err != nil {
 		return pgtype.UUID{}, err
@@ -145,14 +266,24 @@ func (s *SyncService) createOrUpdateIssue(ctx context.Context, cfg *FeishuUserCo
 		projectID = *cfg.TargetProjectID
 	}
 
+	var assigneeType pgtype.Text
+	var assigneeIDParam pgtype.UUID
+	if assigneeID.Valid {
+		assigneeType = pgtype.Text{String: "member", Valid: true}
+		assigneeIDParam = assigneeID
+	}
+
 	issue, err := s.queries.CreateIssue(ctx, db.CreateIssueParams{
-		WorkspaceID: cfg.WorkspaceID,
+		WorkspaceID:  cfg.WorkspaceID,
 		Title:       title,
 		Description: pgtype.Text{String: content, Valid: content != ""},
 		CreatorType: "member",
 		CreatorID:   cfg.UserID,
 		Status:      "todo",
+		Priority:    "none",
 		ProjectID:   projectID,
+		AssigneeType: assigneeType,
+		AssigneeID:  assigneeIDParam,
 	})
 	if err != nil {
 		return pgtype.UUID{}, err
@@ -187,4 +318,240 @@ func (s *SyncService) extractContentFields(fields map[string]interface{}, conten
 
 func (s *SyncService) isAssignedToUser(assignee, userEmail string) bool {
 	return strings.Contains(assignee, userEmail)
+}
+
+type AssigneeInfo struct {
+	Persons []Person
+}
+
+type Person struct {
+	ID   string
+	Name string
+}
+
+func (s *SyncService) extractAssigneeInfoFromField(val interface{}) *AssigneeInfo {
+	info := &AssigneeInfo{}
+
+	switch v := val.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if person, ok := item.(map[string]interface{}); ok {
+				personInfo := s.extractPersonFromObject(person)
+				if personInfo != nil {
+					info.Persons = append(info.Persons, *personInfo)
+				}
+			}
+		}
+	case map[string]interface{}:
+		if personInfo := s.extractPersonFromObject(v); personInfo != nil {
+			info.Persons = append(info.Persons, *personInfo)
+		}
+	}
+
+	if len(info.Persons) == 0 {
+		return nil
+	}
+	return info
+}
+
+func (s *SyncService) extractPersonFromObject(obj map[string]interface{}) *Person {
+	id, _ := obj["id"].(string)
+	name, _ := obj["name"].(string)
+	if id == "" && name == "" {
+		return nil
+	}
+	return &Person{ID: id, Name: name}
+}
+
+func evaluateFilter(fields map[string]interface{}, groups []FilterGroup) bool {
+	if len(groups) == 0 {
+		return true
+	}
+	for _, group := range groups {
+		if !evaluateGroup(fields, group) {
+			return false
+		}
+	}
+	return true
+}
+
+func evaluateGroup(fields map[string]interface{}, group FilterGroup) bool {
+	if len(group.Conditions) == 0 {
+		return true
+	}
+	for _, cond := range group.Conditions {
+		matched := evaluateCondition(fields, cond)
+		if group.Logic == "AND" && !matched {
+			return false
+		}
+		if group.Logic == "OR" && matched {
+			return true
+		}
+	}
+	if group.Logic == "AND" {
+		return true
+	}
+	return false
+}
+
+func evaluateCondition(fields map[string]interface{}, cond FilterCondition) bool {
+	val, ok := fields[cond.Field]
+	if !ok {
+		return cond.Operator == "is_empty"
+	}
+	switch cond.Operator {
+	case "equals":
+		return equals(val, cond.Value)
+	case "not_equals":
+		return !equals(val, cond.Value)
+	case "contains":
+		return contains(val, cond.Value)
+	case "not_contains":
+		return !contains(val, cond.Value)
+	case "is_empty":
+		return isEmpty(val)
+	case "is_not_empty":
+		return !isEmpty(val)
+	case "greater_than":
+		return compare(val, cond.Value, ">")
+	case "less_than":
+		return compare(val, cond.Value, "<")
+	case "greater_or_equal":
+		return compare(val, cond.Value, ">=")
+	case "less_or_equal":
+		return compare(val, cond.Value, "<=")
+	case "contains_any":
+		return containsAny(val, cond.Value)
+	case "contains_all":
+		return containsAll(val, cond.Value)
+	case "not_contains_any":
+		return !containsAny(val, cond.Value)
+	case "before":
+		return dateBefore(val, cond.Value)
+	case "after":
+		return dateAfter(val, cond.Value)
+	case "is_checked":
+		b, _ := val.(bool)
+		return b == true
+	case "is_not_checked":
+		b, _ := val.(bool)
+		return b == false
+	default:
+		return true
+	}
+}
+
+func getStringValue(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case float64:
+		return fmt.Sprintf("%v", val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func equals(val, condValue interface{}) bool {
+	return strings.EqualFold(getStringValue(val), getStringValue(condValue))
+}
+
+func contains(val, condValue interface{}) bool {
+	return strings.Contains(strings.ToLower(getStringValue(val)), strings.ToLower(getStringValue(condValue)))
+}
+
+func isEmpty(val interface{}) bool {
+	if val == nil {
+		return true
+	}
+	switch v := val.(type) {
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []interface{}:
+		return len(v) == 0
+	case map[string]interface{}:
+		return len(v) == 0
+	}
+	return false
+}
+
+func containsAny(val, condValue interface{}) bool {
+	arr, ok := val.([]interface{})
+	if !ok {
+		return false
+	}
+	condStr := getStringValue(condValue)
+	for _, item := range arr {
+		if strings.EqualFold(getStringValue(item), condStr) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAll(val, condValue interface{}) bool {
+	arr, ok := val.([]interface{})
+	if !ok {
+		return false
+	}
+	condStrs, ok := condValue.([]interface{})
+	if !ok {
+		condStrs = []interface{}{condValue}
+	}
+	matched := 0
+	for _, cs := range condStrs {
+		csStr := getStringValue(cs)
+		for _, item := range arr {
+			if strings.EqualFold(getStringValue(item), csStr) {
+				matched++
+				break
+			}
+		}
+	}
+	return matched == len(condStrs)
+}
+
+func compare(val, condValue interface{}, op string) bool {
+	var fv, cv float64
+	switch v := val.(type) {
+	case float64:
+		fv = v
+	case int:
+		fv = float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		fv = f
+	default:
+		return false
+	}
+	switch v := condValue.(type) {
+	case float64:
+		cv = v
+	case int:
+		cv = float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		cv = f
+	default:
+		return false
+	}
+	switch op {
+	case ">":
+		return fv > cv
+	case "<":
+		return fv < cv
+	case ">=":
+		return fv >= cv
+	case "<=":
+		return fv <= cv
+	}
+	return false
+}
+
+func dateBefore(val, condValue interface{}) bool {
+	return getStringValue(val) < getStringValue(condValue)
+}
+
+func dateAfter(val, condValue interface{}) bool {
+	return getStringValue(val) > getStringValue(condValue)
 }
