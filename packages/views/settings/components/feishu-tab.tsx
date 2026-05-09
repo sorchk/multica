@@ -657,7 +657,7 @@ export function FeishuTab() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
                       <Select
-                        value={group.logic}
+                        value={group.logic || "AND"}
                         onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-32">
@@ -779,7 +779,7 @@ export function FeishuTab() {
                   {!isLast && (
                     <div className="flex items-center justify-center py-2">
                       <Select
-                        value={group.outer_logic}
+                        value={group.outer_logic || "AND"}
                         onValueChange={(v) => updateFilterGroup(groupIndex, { outer_logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-20">
@@ -819,7 +819,7 @@ export function FeishuTab() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
                       <Select
-                        value={group.logic}
+                        value={group.logic || "AND"}
                         onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-32">
@@ -939,7 +939,7 @@ export function FeishuTab() {
                   {!isLast && (
                     <div className="flex items-center justify-center py-2">
                       <Select
-                        value={group.outer_logic}
+                        value={group.outer_logic || "AND"}
                         onValueChange={(v) => updateTasksFilterGroup(groupIndex, { outer_logic: v as "AND" | "OR" })}
                       >
                         <SelectTrigger className="w-20">
