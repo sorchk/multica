@@ -1,0 +1,116 @@
+<h2>飞书多维表格同步 — 过滤条件配置</h2>
+<p class="subtitle">配置哪些记录才同步到多维表格</p>
+
+<div class="mockup">
+  <div class="mockup-header">飞书设置 - 过滤条件</div>
+  <div class="mockup-body">
+
+    <!-- Group 1 -->
+    <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fff;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <span class="label" style="color: #6b7280;">分组内条件:</span>
+        <select style="padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>AND (全部满足)</option>
+          <option>OR (任一满足)</option>
+        </select>
+        <button style="margin-left: auto; font-size: 12px; color: #ef4444; background: none; border: none; cursor: pointer;">✕ 删除分组</button>
+      </div>
+
+      <!-- Condition row -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <select style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>状态</option>
+          <option>创建人</option>
+          <option>创建时间</option>
+          <option>问题描述</option>
+          <option>预计完成时间</option>
+        </select>
+        <select style="width: 140px; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>等于</option>
+          <option>不等于</option>
+          <option>包含</option>
+          <option>不包含</option>
+          <option>为空</option>
+          <option>不为空</option>
+        </select>
+        <input type="text" placeholder="输入值..." style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+        <button style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px;">✕</button>
+      </div>
+
+      <!-- Condition row 2 -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <select style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>状态</option>
+          <option selected>创建人</option>
+          <option>创建时间</option>
+        </select>
+        <select style="width: 140px; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>等于</option>
+          <option>不等于</option>
+          <option>包含</option>
+          <option selected>不包含</option>
+        </select>
+        <input type="text" placeholder="输入值..." style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+        <button style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px;">✕</button>
+      </div>
+
+      <button style="font-size: 12px; color: #3b82f6; background: none; border: none; cursor: pointer;">+ 添加条件</button>
+    </div>
+
+    <!-- Group connector -->
+    <div style="display: flex; align-items: center; justify-content: center; margin: 4px 0;">
+      <select style="padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 12px; background: #f9fafb;">
+        <option>AND</option>
+        <option selected>OR</option>
+      </select>
+    </div>
+
+    <!-- Group 2 -->
+    <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fff;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <span class="label" style="color: #6b7280;">分组内条件:</span>
+        <select style="padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option selected>AND (全部满足)</option>
+          <option>OR (任一满足)</option>
+        </select>
+        <button style="margin-left: auto; font-size: 12px; color: #ef4444; background: none; border: none; cursor: pointer;">✕ 删除分组</button>
+      </div>
+
+      <!-- Condition row -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <select style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>状态</option>
+          <option>创建人</option>
+          <option selected>预计完成时间</option>
+        </select>
+        <select style="width: 140px; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+          <option>等于</option>
+          <option>不等于</option>
+          <option>大于</option>
+          <option selected>小于</option>
+        </select>
+        <input type="date" style="flex: 1; padding: 6px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 13px;">
+        <button style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px;">✕</button>
+      </div>
+
+      <button style="font-size: 12px; color: #3b82f6; background: none; border: none; cursor: pointer;">+ 添加条件</button>
+    </div>
+
+    <button style="font-size: 13px; color: #3b82f6; background: none; border: 1px dashed #3b82f6; border-radius: 6px; padding: 8px 16px; cursor: pointer; width: 100%;">+ 添加分组</button>
+
+  </div>
+</div>
+
+<div style="margin-top: 20px;">
+  <h3>运算符说明</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; color: #6b7280;">
+    <div><strong>文本:</strong> 等于 / 不等于 / 包含 / 不包含 / 为空 / 不为空</div>
+    <div><strong>数字:</strong> 等于 / 不等于 / 大于 / 小于 / 大于等于 / 小于等于</div>
+    <div><strong>单选:</strong> 等于 / 不等于 / 为空 / 不为空</div>
+    <div><strong>多选:</strong> 包含任一 / 包含全部 / 不包含任一 / 为空 / 不为空</div>
+    <div><strong>日期:</strong> 等于 / 早于 / 晚于 / 为空 / 不为空</div>
+    <div><strong>复选框:</strong> 是 / 否 / 为空 / 不为空</div>
+  </div>
+</div>
+
+<p style="font-size: 12px; color: #9ca3af; margin-top: 12px;">字段列表自动从多维表格的字段中读取。点击「保存」后生效。</p>

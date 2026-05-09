@@ -18,6 +18,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/auth"
 	"github.com/multica-ai/multica/server/internal/daemonws"
 	"github.com/multica-ai/multica/server/internal/events"
+	"github.com/multica-ai/multica/server/internal/feishu"
 	"github.com/multica-ai/multica/server/internal/handler"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/middleware"
@@ -107,6 +108,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		AllowedEmailDomains: splitAndTrim(os.Getenv("ALLOWED_EMAIL_DOMAINS")),
 	}
 	h := handler.New(queries, pool, hub, bus, emailSvc, store, cfSigner, analyticsClient, signupConfig, daemonHub)
+	feishuConfigStore := feishu.NewConfigStore(pool)
+	feishuTokenManager := feishu.NewTokenManager(pool)
+	feishuSyncService := feishu.NewSyncService(feishuConfigStore, feishuTokenManager, queries)
+	feishuHandler := handler.NewFeishuHandler(feishuConfigStore, feishuSyncService, feishuTokenManager, queries)
 	if opts.DaemonWakeup != nil {
 		h.TaskService.Wakeup = opts.DaemonWakeup
 	}
@@ -211,6 +216,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 	// Public API
 	r.Get("/api/config", h.GetConfig)
+
+	// Public webhook endpoint
+	r.Post("/api/feishu/webhook/{userId}/{workspaceId}", feishuHandler.HandleWebhook)
 
 	// Daemon API routes (require daemon token or valid user token)
 	r.Route("/api/daemon", func(r chi.Router) {
@@ -512,6 +520,17 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			r.Route("/api/notification-preferences", func(r chi.Router) {
 				r.Get("/", h.GetNotificationPreferences)
 				r.Put("/", h.UpdateNotificationPreferences)
+			})
+
+			// Feishu integration
+			r.Route("/api/feishu", func(r chi.Router) {
+				r.Get("/config", feishuHandler.GetConfig)
+				r.Put("/config", feishuHandler.SaveConfig)
+				r.Delete("/config", feishuHandler.DeleteConfig)
+				r.Post("/sync", feishuHandler.TriggerSync)
+				r.Get("/bitable/{bitableId}/fields", feishuHandler.GetBitableFields)
+				r.Get("/bitable/{bitableId}/records", feishuHandler.GetBitableRecords)
+				r.Post("/bitable/{bitableId}/preview", feishuHandler.PreviewBitableRecords)
 			})
 		})
 	})

@@ -75,6 +75,8 @@ const OPERATORS_BY_TYPE: Record<number, { label: string; value: string }[]> = {
   11: [
     { label: "等于", value: "equals" },
     { label: "不等于", value: "not_equals" },
+    { label: "包含", value: "contains" },
+    { label: "不包含", value: "not_contains" },
     { label: "为空", value: "is_empty" },
     { label: "不为空", value: "is_not_empty" },
   ],
@@ -127,8 +129,28 @@ function evaluateConditionPreview(fields: Record<string, unknown>, cond: FilterC
   switch (cond.operator) {
     case "equals": return String(val || "").toLowerCase() === String(cond.value || "").toLowerCase();
     case "not_equals": return String(val || "").toLowerCase() !== String(cond.value || "").toLowerCase();
-    case "contains": return String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
-    case "not_contains": return !String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
+    case "contains":
+      if (Array.isArray(val)) {
+        const condStr = String(cond.value || "").toLowerCase();
+        return val.some((item) => {
+          if (item && typeof item === "object" && "name" in item) {
+            return String((item as { name: string }).name || "").toLowerCase().includes(condStr);
+          }
+          return String(item || "").toLowerCase().includes(condStr);
+        });
+      }
+      return String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
+    case "not_contains":
+      if (Array.isArray(val)) {
+        const condStr = String(cond.value || "").toLowerCase();
+        return !val.some((item) => {
+          if (item && typeof item === "object" && "name" in item) {
+            return String((item as { name: string }).name || "").toLowerCase().includes(condStr);
+          }
+          return String(item || "").toLowerCase().includes(condStr);
+        });
+      }
+      return !String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
     case "is_empty": return val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
     case "is_not_empty": return val !== null && val !== undefined && val !== "" && (!Array.isArray(val) || val.length > 0);
     case "greater_than": return Number(val) > Number(cond.value);
@@ -214,9 +236,8 @@ export function FeishuTab() {
     }
     setTesting(true);
     try {
-      const testConfig = { ...config, data_source: "bitable", bitable_id: "test" } as FeishuUserConfig;
-      await api.saveFeishuConfig(testConfig);
-      const flds = await api.getFeishuBitableFields(config.bitable_id || "test");
+      const testBitableId = config.bitable_id || "test";
+      const flds = await api.getFeishuBitableFields(testBitableId);
       if (flds !== null) {
         toast.success(t(($) => $.feishu.toast_test_success));
       }
@@ -250,17 +271,15 @@ export function FeishuTab() {
     setPreviewLoading(true);
     setPreviewOpen(true);
     try {
-      const records = await api.getFeishuBitableRecords(config.bitable_id);
       const filterGroups = config.filter_config?.filter_groups || [];
-      const filtered = filterGroups.length > 0
-        ? records.filter((r: {record_id: string; fields: Record<string, unknown>}) => evaluateFilterPreview(r.fields, filterGroups))
-        : records;
-      const processed = filtered.map((r: {record_id: string; fields: Record<string, unknown>}) => ({
-        title: config.title_field ? extractFieldValue(r.fields[config.title_field]) : "",
-        assignee: config.assignee_field ? extractFieldValue(r.fields[config.assignee_field]) : "",
-        content: (config.content_fields || []).map((f: string) => extractFieldValue(r.fields[f])).filter(Boolean).join("\n\n"),
-      }));
-      setPreviewData(processed);
+      const preview = await api.previewFeishuBitableRecords(
+        config.bitable_id,
+        filterGroups,
+        config.title_field || "",
+        config.assignee_field || "",
+        config.content_fields || []
+      );
+      setPreviewData(preview);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t(($) => $.feishu.toast_preview_failed));
       setPreviewOpen(false);
@@ -715,7 +734,7 @@ export function FeishuTab() {
                             onValueChange={(v) => updateFilterCondition(groupIndex, condIndex, { operator: v })}
                           >
                             <SelectTrigger className="w-32">
-                              <SelectValue />
+                              <SelectValue>{operators.find(o => o.value === cond.operator)?.label}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {[...operators, { value: cond.operator, label: operators.find(o => o.value === cond.operator)?.label || cond.operator }].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i).map((op) => (
@@ -877,7 +896,7 @@ export function FeishuTab() {
                             onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { operator: v })}
                           >
                             <SelectTrigger className="w-32">
-                              <SelectValue />
+                              <SelectValue>{operators.find(o => o.value === cond.operator)?.label}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {[...operators, { value: cond.operator, label: operators.find(o => o.value === cond.operator)?.label || cond.operator }].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i).map((op) => (
@@ -1033,6 +1052,7 @@ export function FeishuTab() {
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li><code>bitable:app</code> - {t(($) => $.feishu.help_perm_bitable)}</li>
                 <li><code>task:app:readonly</code> - {t(($) => $.feishu.help_perm_task)}</li>
+                <li><code>contact:contact:readonly</code> - {t(($) => $.feishu.help_perm_contact)}</li>
               </ul>
             </section>
 

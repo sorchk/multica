@@ -173,7 +173,7 @@ start: ## Start backend and frontend for the current checkout and run migrations
 	cd server && go run ./cmd/migrate up
 	@echo "Starting backend and frontend..."
 	@trap 'kill 0' EXIT; \
-		(cd server && go run ./cmd/server) & \
+		(cd server && air) & \
 		pnpm dev:web & \
 		wait
 

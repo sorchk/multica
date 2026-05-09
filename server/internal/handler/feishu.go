@@ -97,6 +97,13 @@ func (h *FeishuHandler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	userUUID, _ := util.ParseUUID(userID)
 	wsUUID, _ := util.ParseUUID(workspaceID)
 
+	if req.AppSecret == "" || req.AppSecret == "***" {
+		existingCfg, _ := h.configStore.GetByUserAndWorkspace(r.Context(), userUUID, wsUUID)
+		if existingCfg != nil && existingCfg.AppSecretEncrypted != "" {
+			encryptedSecret = existingCfg.AppSecretEncrypted
+		}
+	}
+
 	var projectID *pgtype.UUID
 	if req.TargetProjectID != "" {
 		pid, _ := util.ParseUUID(req.TargetProjectID)
@@ -250,13 +257,92 @@ func (h *FeishuHandler) GetBitableRecords(w http.ResponseWriter, r *http.Request
 
 	bitable := feishu.NewBitableClient(bitableID, token)
 
-	records, err := bitable.GetRecords(r.Context(), 10, "")
+	records, err := bitable.GetRecords(r.Context(), 100, "")
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	writeJSON(w, http.StatusOK, records.Data.Items)
+}
+
+func (h *FeishuHandler) PreviewBitableRecords(w http.ResponseWriter, r *http.Request) {
+	bitableID := chi.URLParam(r, "bitableId")
+	if bitableID == "" {
+		writeError(w, http.StatusBadRequest, "bitable_id required")
+		return
+	}
+
+	var req struct {
+		FilterGroups   []feishu.FilterGroup `json:"filter_groups"`
+		TitleField     string               `json:"title_field"`
+		AssigneeField  string               `json:"assignee_field"`
+		ContentFields  []string             `json:"content_fields"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := h.resolveWorkspaceID(r)
+
+	userUUID, _ := util.ParseUUID(userID)
+	wsUUID, _ := util.ParseUUID(workspaceID)
+
+	cfg, err := h.configStore.GetByUserAndWorkspace(r.Context(), userUUID, wsUUID)
+	if err != nil || cfg == nil {
+		writeError(w, http.StatusBadRequest, "feishu not configured")
+		return
+	}
+
+	secret, err := feishu.DecryptSecret(cfg.AppSecretEncrypted)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to decrypt secret: "+err.Error())
+		return
+	}
+	token, err := h.tokenManager.GetToken(r.Context(), cfg.AppID, secret)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get token: "+err.Error())
+		return
+	}
+
+	bitable := feishu.NewBitableClient(bitableID, token)
+
+	records, err := bitable.GetRecords(r.Context(), 100, "")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var filtered []feishu.BitableRecord
+	for _, record := range records.Data.Items {
+		if feishu.EvaluateRecord(record.Fields, req.FilterGroups) {
+			filtered = append(filtered, record)
+		}
+	}
+
+	type PreviewItem struct {
+		Title    string `json:"title"`
+		Assignee string `json:"assignee"`
+		Content  string `json:"content"`
+	}
+	var preview []PreviewItem
+	for _, record := range filtered {
+		title := feishu.ExtractFieldValue(record.Fields, req.TitleField)
+		assignee := feishu.ExtractFieldValue(record.Fields, req.AssigneeField)
+		content := feishu.ExtractContentFields(record.Fields, req.ContentFields)
+		preview = append(preview, PreviewItem{
+			Title:    title,
+			Assignee: assignee,
+			Content:  content,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, preview)
 }
 
 func (h *FeishuHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {

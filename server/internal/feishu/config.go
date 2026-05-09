@@ -55,8 +55,8 @@ func (s *ConfigStore) GetByUserAndWorkspace(ctx context.Context, userID, workspa
 
 func (s *ConfigStore) Upsert(ctx context.Context, cfg *FeishuUserConfig) error {
 	contentFieldsJSON, _ := json.Marshal(cfg.ContentFields)
-	filterConfigJSON, _ := json.Marshal(cfg.FilterConfig)
-	tasksFilterConfigJSON, _ := json.Marshal(cfg.TasksFilterConfig)
+	filterConfigJSON := cfg.FilterConfig
+	tasksFilterConfigJSON := cfg.TasksFilterConfig
 
 	id := cfg.ID
 	if !id.Valid {

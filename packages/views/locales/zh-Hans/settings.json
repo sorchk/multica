@@ -277,6 +277,7 @@
     "help_permissions_desc": "在飞书开放平台，为应用添加以下权限：",
     "help_perm_bitable": "读取多维表格数据",
     "help_perm_task": "读取飞书任务",
+    "help_perm_contact": "读取飞书联系人信息（需在权限配置中开启「可访问所有成员」）",
     "help_app_id_title": "App ID",
     "help_app_id_desc": "位置：飞书开放平台 → 应用 → 基本信息 → App ID",
     "help_app_secret_title": "App Secret",

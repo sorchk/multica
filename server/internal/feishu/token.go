@@ -3,6 +3,7 @@ package feishu
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,6 +12,17 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func DecryptSecret(ciphertext string) (string, error) {
+	if ciphertext == "" {
+		return "", nil
+	}
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
 
 type TokenManager struct {
 	pool  *pgxpool.Pool

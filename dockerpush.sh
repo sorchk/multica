@@ -4,7 +4,7 @@ ver=$1
 # 在代码中搜索 my-version，修改版本号
 build_date=$(date +"%Y%m%d")
 if [ -z "${ver}" ]; then
-  ver=0.2.16
+  ver=0.2.27
 fi
 echo ${ver}_${build_date}
 export DOCKER_CLI_EXPERIMENTAL=enabled

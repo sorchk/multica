@@ -85,6 +85,7 @@ import type {
   FeishuUserConfig,
   FeishuTaskMapping,
   BitableField,
+  FilterGroup,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import { type Logger, noopLogger } from "../logger";
@@ -1297,6 +1298,22 @@ export class ApiClient {
 
   async getFeishuBitableFields(bitableId: string): Promise<BitableField[]> {
     return this.fetch(`/api/feishu/bitable/${bitableId}/fields`);
+  }
+
+  async getFeishuBitableRecords(bitableId: string): Promise<{record_id: string; fields: Record<string, unknown>}[]> {
+    return this.fetch(`/api/feishu/bitable/${bitableId}/records`);
+  }
+
+  async previewFeishuBitableRecords(bitableId: string, filterGroups: FilterGroup[], titleField: string, assigneeField: string, contentFields: string[]): Promise<{title: string; assignee: string; content: string}[]> {
+    return this.fetch(`/api/feishu/bitable/${bitableId}/preview`, {
+      method: "POST",
+      body: JSON.stringify({
+        filter_groups: filterGroups,
+        title_field: titleField,
+        assignee_field: assigneeField,
+        content_fields: contentFields,
+      }),
+    });
   }
 
   async getFeishuMappings(): Promise<FeishuTaskMapping[]> {

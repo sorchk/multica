@@ -1,5 +1,4 @@
 import type { Workspace } from "../types";
-import { useAuthStore } from "../auth";
 import { paths } from "./paths";
 
 /**

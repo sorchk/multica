@@ -277,6 +277,7 @@
     "help_permissions_desc": "In Feishu Open Platform, add these permissions to your app:",
     "help_perm_bitable": "Read bitable data",
     "help_perm_task": "Read Feishu Tasks",
+    "help_perm_contact": "Read Feishu contacts (enable 'Accessible to all members' in permission config)",
     "help_app_id_title": "App ID",
     "help_app_id_desc": "Find in: Feishu Open Platform → App → Basic Info → App ID",
     "help_app_secret_title": "App Secret",
