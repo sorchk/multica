@@ -85,6 +85,7 @@ func (h *FeishuHandler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 		SyncIntervalMinutes int      `json:"sync_interval_minutes"`
 		Enabled             bool     `json:"enabled"`
 		FilterConfig        json.RawMessage `json:"filter_config"`
+		TasksFilterConfig   json.RawMessage `json:"tasks_filter_config"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -125,6 +126,7 @@ func (h *FeishuHandler) SaveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.ContentFields = req.ContentFields
 	cfg.FilterConfig = req.FilterConfig
+	cfg.TasksFilterConfig = req.TasksFilterConfig
 
 	if err := h.configStore.Upsert(r.Context(), cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

@@ -24,6 +24,7 @@ type FeishuUserConfig struct {
 	LastSyncAt           *time.Time   `json:"last_sync_at"`
 	Enabled              bool         `json:"enabled"`
 	FilterConfig         json.RawMessage `json:"filter_config"`
+	TasksFilterConfig   json.RawMessage `json:"tasks_filter_config"`
 	CreatedAt            time.Time    `json:"created_at"`
 	UpdatedAt            time.Time    `json:"updated_at"`
 }

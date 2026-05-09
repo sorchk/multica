@@ -245,6 +245,8 @@
     "enter_value": "Enter value",
     "yes": "Yes",
     "no": "No",
+    "tasks_filter_conditions": "Feishu Tasks Filter",
+    "tasks_filter_conditions_hint": "Configure Feishu Tasks filter conditions. Only tasks matching all conditions will be synced.",
     "webhook": "Webhook URL",
     "webhook_hint": "Configure this URL in Feishu Open Platform as webhook address",
     "save": "Save",

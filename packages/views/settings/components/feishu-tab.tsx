@@ -82,6 +82,20 @@ const OPERATORS_BY_TYPE: Record<number, { label: string; value: string }[]> = {
 
 const NO_VALUE_OPERATORS = ["is_empty", "is_not_empty", "is_checked", "is_not_checked"];
 
+const TASK_FIELD_NAMES = [
+  { label: "Summary", value: "summary" },
+  { label: "Description", value: "description" },
+  { label: "Due Date", value: "due" },
+  { label: "Completed", value: "completed" },
+];
+
+const TASK_FIELD_TYPES: Record<string, number> = {
+  summary: 1,
+  description: 1,
+  due: 5,
+  completed: 7,
+};
+
 export function FeishuTab() {
   const { t } = useT("settings");
   const workspace = useCurrentWorkspace();
@@ -93,6 +107,7 @@ export function FeishuTab() {
     content_fields: [],
     enabled: true,
     filter_config: { filter_groups: [] },
+    tasks_filter_config: { filter_groups: [] },
   });
   const [fields, setFields] = useState<BitableField[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,6 +136,9 @@ export function FeishuTab() {
       if (cfg) {
         if (!cfg.filter_config) {
           cfg.filter_config = { filter_groups: [] };
+        }
+        if (!cfg.tasks_filter_config) {
+          cfg.tasks_filter_config = { filter_groups: [] };
         }
         setConfig(cfg);
         if (cfg.bitable_id) {
@@ -266,6 +284,81 @@ export function FeishuTab() {
         filter_groups: groups.map((g, i) =>
           i === groupIndex
             ? { ...g, conditions: g.conditions.filter((_, j) => j !== condIndex) }
+            : g
+        ),
+      },
+    });
+  };
+
+  const addTasksFilterGroup = () => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    setConfig({
+      ...config,
+      tasks_filter_config: {
+        filter_groups: [
+          ...groups,
+          { logic: "AND" as const, conditions: [] },
+        ],
+      },
+    });
+  };
+
+  const removeTasksFilterGroup = (groupIndex: number) => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    setConfig({
+      ...config,
+      tasks_filter_config: {
+        filter_groups: groups.filter((_, i) => i !== groupIndex),
+      },
+    });
+  };
+
+  const updateTasksFilterGroup = (groupIndex: number, updates: Partial<FilterGroup>) => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    const newGroups = [...groups];
+    newGroups[groupIndex] = { ...newGroups[groupIndex], ...updates };
+    setConfig({
+      ...config,
+      tasks_filter_config: { filter_groups: newGroups },
+    });
+  };
+
+  const addTasksFilterCondition = (groupIndex: number) => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    const newConditions = [
+      ...(groups[groupIndex]?.conditions || []),
+      { field: "", operator: "equals", value: "" },
+    ];
+    updateTasksFilterGroup(groupIndex, { conditions: newConditions });
+  };
+
+  const removeTasksFilterCondition = (groupIndex: number, condIndex: number) => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    setConfig({
+      ...config,
+      tasks_filter_config: {
+        filter_groups: groups.map((g, i) =>
+          i === groupIndex
+            ? { ...g, conditions: g.conditions.filter((_, j) => j !== condIndex) }
+            : g
+        ),
+      },
+    });
+  };
+
+  const updateTasksFilterCondition = (groupIndex: number, condIndex: number, updates: Partial<FilterCondition>) => {
+    const groups = config.tasks_filter_config?.filter_groups || [];
+    setConfig({
+      ...config,
+      tasks_filter_config: {
+        filter_groups: groups.map((g, i) =>
+          i === groupIndex
+            ? {
+                ...g,
+                conditions: g.conditions.map((c, j) =>
+                  j === condIndex ? { ...c, ...updates } : c
+                ),
+              }
             : g
         ),
       },
@@ -485,7 +578,7 @@ export function FeishuTab() {
                 </div>
               </div>
             )}
-            {fieldsLoading && (
+{fieldsLoading && (
               <p className="text-xs text-muted-foreground">{t(($) => $.feishu.loading_fields)}</p>
             )}
             {config.bitable_id && fields && fields.length > 0 && (
@@ -493,56 +586,7 @@ export function FeishuTab() {
                 {t(($) => $.feishu.preview_tasks)}
               </Button>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      <Card>
-        <CardContent className="space-y-4 pt-4">
-          <h3 className="text-sm font-medium">{t(($) => $.feishu.sync_settings)}</h3>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="sync-interval">{t(($) => $.feishu.sync_interval)}</Label>
-              <Input
-                id="sync-interval"
-                type="number"
-                min={1}
-                value={config.sync_interval_minutes || 15}
-                onChange={(e) => setConfig({ ...config, sync_interval_minutes: parseInt(e.target.value) || 15 })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="target-type">{t(($) => $.feishu.target_type)}</Label>
-              <Select
-                value={config.target_type || "personal"}
-                onValueChange={(v) => setConfig({ ...config, target_type: v as "project" | "personal" })}
-              >
-                <SelectTrigger id="target-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">{t(($) => $.feishu.personal)}</SelectItem>
-                  <SelectItem value="project">{t(($) => $.feishu.project)}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="enabled"
-              checked={config.enabled ?? true}
-              onCheckedChange={(checked) => setConfig({ ...config, enabled: checked })}
-            />
-            <Label htmlFor="enabled" className="font-normal cursor-pointer">
-              {t(($) => $.feishu.enabled)}
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
-
-      {showBitableSettings && (
-        <Card>
-          <CardContent className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">{t(($) => $.feishu.filter_conditions)}</h3>
               <Button variant="outline" size="sm" onClick={addFilterGroup}>
@@ -625,7 +669,7 @@ export function FeishuTab() {
                             <SelectValue placeholder={t(($) => $.feishu.select_field)} />
                           </SelectTrigger>
                           <SelectContent>
-                            {fields?.map((f) => (
+                            {(fields || []).map((f) => (
                               <SelectItem key={f.field_id} value={f.field_name}>
                                 {f.field_name}
                               </SelectItem>
@@ -697,6 +741,169 @@ export function FeishuTab() {
                     size="sm"
                     className="text-xs"
                     onClick={() => addFilterCondition(groupIndex)}
+                  >
+                    {t(($) => $.feishu.add_condition)}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {config.data_source?.includes("tasks") && (
+        <Card>
+          <CardContent className="space-y-4 pt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">{t(($) => $.feishu.tasks_filter_conditions)}</h3>
+              <Button variant="outline" size="sm" onClick={addTasksFilterGroup}>
+                {t(($) => $.feishu.add_filter_group)}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">{t(($) => $.feishu.tasks_filter_conditions_hint)}</p>
+
+            {(config.tasks_filter_config?.filter_groups || []).map((group, groupIndex) => (
+              <div key={groupIndex}>
+                {groupIndex > 0 && (
+                  <div className="flex items-center justify-center py-2">
+                    <Select
+                      value={(config.tasks_filter_config?.filter_groups?.[groupIndex - 1]?.logic || "AND")}
+                      onValueChange={(v) => {
+                        const groups = config.tasks_filter_config?.filter_groups || [];
+                        const newGroups = [...groups];
+                        newGroups[groupIndex - 1] = { ...newGroups[groupIndex - 1], logic: v as "AND" | "OR" };
+                        setConfig({ ...config, tasks_filter_config: { filter_groups: newGroups } });
+                      }}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AND">AND</SelectItem>
+                        <SelectItem value="OR">OR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="border rounded-lg p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
+                    <Select
+                      value={group.logic}
+                      onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
+                        <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto text-xs text-destructive"
+                      onClick={() => removeTasksFilterGroup(groupIndex)}
+                    >
+                      {t(($) => $.feishu.delete_group)}
+                    </Button>
+                  </div>
+
+                  {group.conditions.map((cond, condIndex) => {
+                    const fieldType = TASK_FIELD_TYPES[cond.field] || 1;
+                    const operators = OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE[1];
+                    const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
+
+                    return (
+                      <div key={condIndex} className="flex items-center gap-2">
+                        <Select
+                          value={cond.field}
+                          onValueChange={(v) => {
+                            const newType = TASK_FIELD_TYPES[v] || 1;
+                            const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
+                            const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
+                            updateTasksFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
+                          }}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder={t(($) => $.feishu.select_field)} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TASK_FIELD_NAMES.map((f) => (
+                              <SelectItem key={f.value} value={f.value}>
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={cond.operator}
+                          onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { operator: v })}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {operators.map((op) => (
+                              <SelectItem key={op.value} value={op.value}>
+                                {op.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {needsValue && (
+                          fieldType === 5 ? (
+                            <Input
+                              type="date"
+                              className="flex-1"
+                              value={cond.value as string || ""}
+                              onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                            />
+                          ) : fieldType === 7 ? (
+                            <Select
+                              value={cond.value as string || "true"}
+                              onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { value: v === "true" })}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
+                                <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              className="flex-1"
+                              value={cond.value as string || ""}
+                              onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                              placeholder={t(($) => $.feishu.enter_value)}
+                            />
+                          )
+                        )}
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive shrink-0"
+                          onClick={() => removeTasksFilterCondition(groupIndex, condIndex)}
+                        >
+                          <span className="text-xs">✕</span>
+                        </Button>
+                      </div>
+                    );
+                  })}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => addTasksFilterCondition(groupIndex)}
                   >
                     {t(($) => $.feishu.add_condition)}
                   </Button>

@@ -245,6 +245,8 @@
     "enter_value": "输入值",
     "yes": "是",
     "no": "否",
+    "tasks_filter_conditions": "飞书任务过滤条件",
+    "tasks_filter_conditions_hint": "配置飞书任务的过滤条件，只有符合条件的任务才会同步",
     "webhook": "Webhook URL",
     "webhook_hint": "在飞书开放平台配置此 URL 为 Webhook 地址",
     "save": "保存",

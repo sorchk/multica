@@ -24,7 +24,7 @@ func (s *ConfigStore) GetByUserAndWorkspace(ctx context.Context, userID, workspa
 		SELECT id, user_id, workspace_id, app_id, app_secret_encrypted, data_source,
 			   bitable_id, title_field, assignee_field, content_fields,
 			   target_type, target_project_id, sync_interval_minutes,
-			   last_sync_at, enabled, filter_config, created_at, updated_at
+			   last_sync_at, enabled, filter_config, tasks_filter_config, created_at, updated_at
 		FROM feishu_user_configs
 		WHERE user_id = $1 AND workspace_id = $2
 	`, userID, workspaceID)
@@ -32,12 +32,13 @@ func (s *ConfigStore) GetByUserAndWorkspace(ctx context.Context, userID, workspa
 	var cfg FeishuUserConfig
 	var contentFieldsJSON []byte
 	var filterConfigJSON []byte
+	var tasksFilterConfigJSON []byte
 	err := row.Scan(
 		&cfg.ID, &cfg.UserID, &cfg.WorkspaceID, &cfg.AppID, &cfg.AppSecretEncrypted,
 		&cfg.DataSource, &cfg.BitableID, &cfg.TitleField, &cfg.AssigneeField,
 		&contentFieldsJSON, &cfg.TargetType, &cfg.TargetProjectID,
 		&cfg.SyncIntervalMinutes, &cfg.LastSyncAt, &cfg.Enabled,
-		&filterConfigJSON,
+		&filterConfigJSON, &tasksFilterConfigJSON,
 		&cfg.CreatedAt, &cfg.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
@@ -48,12 +49,14 @@ func (s *ConfigStore) GetByUserAndWorkspace(ctx context.Context, userID, workspa
 	}
 	json.Unmarshal(contentFieldsJSON, &cfg.ContentFields)
 	cfg.FilterConfig = filterConfigJSON
+	cfg.TasksFilterConfig = tasksFilterConfigJSON
 	return &cfg, nil
 }
 
 func (s *ConfigStore) Upsert(ctx context.Context, cfg *FeishuUserConfig) error {
 	contentFieldsJSON, _ := json.Marshal(cfg.ContentFields)
 	filterConfigJSON, _ := json.Marshal(cfg.FilterConfig)
+	tasksFilterConfigJSON, _ := json.Marshal(cfg.TasksFilterConfig)
 
 	id := cfg.ID
 	if !id.Valid {
@@ -64,8 +67,8 @@ func (s *ConfigStore) Upsert(ctx context.Context, cfg *FeishuUserConfig) error {
 		INSERT INTO feishu_user_configs
 			(id, user_id, workspace_id, app_id, app_secret_encrypted, data_source,
 			 bitable_id, title_field, assignee_field, content_fields,
-			 target_type, target_project_id, sync_interval_minutes, enabled, filter_config)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			 target_type, target_project_id, sync_interval_minutes, enabled, filter_config, tasks_filter_config)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (user_id, workspace_id) DO UPDATE SET
 			app_id = EXCLUDED.app_id,
 			app_secret_encrypted = EXCLUDED.app_secret_encrypted,
@@ -79,11 +82,12 @@ func (s *ConfigStore) Upsert(ctx context.Context, cfg *FeishuUserConfig) error {
 			sync_interval_minutes = EXCLUDED.sync_interval_minutes,
 			enabled = EXCLUDED.enabled,
 			filter_config = EXCLUDED.filter_config,
+			tasks_filter_config = EXCLUDED.tasks_filter_config,
 			updated_at = now()
 	`, id, cfg.UserID, cfg.WorkspaceID, cfg.AppID, cfg.AppSecretEncrypted,
 		cfg.DataSource, cfg.BitableID, cfg.TitleField, cfg.AssigneeField,
 		contentFieldsJSON, cfg.TargetType, cfg.TargetProjectID,
-		cfg.SyncIntervalMinutes, cfg.Enabled, filterConfigJSON)
+		cfg.SyncIntervalMinutes, cfg.Enabled, filterConfigJSON, tasksFilterConfigJSON)
 	return err
 }
 

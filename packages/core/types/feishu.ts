@@ -30,6 +30,7 @@ export interface FeishuUserConfig {
   last_sync_at?: string;
   enabled: boolean;
   filter_config: FilterConfig;
+  tasks_filter_config: FilterConfig;
 }
 
 export interface FeishuTaskMapping {
