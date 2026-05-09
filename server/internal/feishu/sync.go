@@ -224,7 +224,27 @@ func (s *SyncService) syncTasks(ctx context.Context, cfg *FeishuUserConfig, toke
 		return fmt.Errorf("failed to fetch tasks: %w", err)
 	}
 
+	var filterGroups []FilterGroup
+	if len(cfg.TasksFilterConfig) > 0 {
+		json.Unmarshal(cfg.TasksFilterConfig, &filterGroups)
+	}
+
 	for _, task := range resp.Data.Items {
+		taskFields := map[string]interface{}{
+			"summary":     task.Summary,
+			"description": task.Description,
+		}
+		if task.Due != nil {
+			taskFields["due"] = task.Due.Timestamp
+		}
+
+		if len(filterGroups) > 0 {
+			if !evaluateFilter(taskFields, filterGroups) {
+				slog.Info("tasks sync: skipping task (filter mismatch)", "task_guid", task.GUID)
+				continue
+			}
+		}
+
 		issueID, err := s.createOrUpdateIssue(ctx, cfg, task.GUID, task.Summary, task.Description, pgtype.UUID{})
 		if err != nil {
 			slog.Error("failed to sync task", "task_guid", task.GUID, "error", err)

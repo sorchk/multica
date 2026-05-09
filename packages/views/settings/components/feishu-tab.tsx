@@ -96,6 +96,46 @@ const TASK_FIELD_TYPES: Record<string, number> = {
   completed: 7,
 };
 
+function evaluateFilterPreview(fields: Record<string, unknown>, groups: FilterGroup[]): boolean {
+  if (!groups || groups.length === 0) return true;
+  for (const group of groups) {
+    if (!evaluateGroupPreview(fields, group)) return false;
+  }
+  return true;
+}
+
+function evaluateGroupPreview(fields: Record<string, unknown>, group: FilterGroup): boolean {
+  if (!group.conditions || group.conditions.length === 0) return true;
+  for (const cond of group.conditions) {
+    const matched = evaluateConditionPreview(fields, cond);
+    if (group.logic === "AND" && !matched) return false;
+    if (group.logic === "OR" && matched) return true;
+  }
+  return group.logic === "AND";
+}
+
+function evaluateConditionPreview(fields: Record<string, unknown>, cond: FilterCondition): boolean {
+  const val = fields[cond.field];
+  const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
+  switch (cond.operator) {
+    case "equals": return String(val || "").toLowerCase() === String(cond.value || "").toLowerCase();
+    case "not_equals": return String(val || "").toLowerCase() !== String(cond.value || "").toLowerCase();
+    case "contains": return String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
+    case "not_contains": return !String(val || "").toLowerCase().includes(String(cond.value || "").toLowerCase());
+    case "is_empty": return val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
+    case "is_not_empty": return val !== null && val !== undefined && val !== "" && (!Array.isArray(val) || val.length > 0);
+    case "greater_than": return Number(val) > Number(cond.value);
+    case "less_than": return Number(val) < Number(cond.value);
+    case "greater_or_equal": return Number(val) >= Number(cond.value);
+    case "less_or_equal": return Number(val) <= Number(cond.value);
+    case "before": return String(val || "") < String(cond.value || "");
+    case "after": return String(val || "") > String(cond.value || "");
+    case "is_checked": return val === true;
+    case "is_not_checked": return val === false;
+    default: return true;
+  }
+}
+
 export function FeishuTab() {
   const { t } = useT("settings");
   const workspace = useCurrentWorkspace();
@@ -204,7 +244,11 @@ export function FeishuTab() {
     setPreviewOpen(true);
     try {
       const records = await api.getFeishuBitableRecords(config.bitable_id);
-      const processed = records.map((r: {record_id: string; fields: Record<string, unknown>}) => ({
+      const filterGroups = config.filter_config?.filter_groups || [];
+      const filtered = filterGroups.length > 0
+        ? records.filter((r: {record_id: string; fields: Record<string, unknown>}) => evaluateFilterPreview(r.fields, filterGroups))
+        : records;
+      const processed = filtered.map((r: {record_id: string; fields: Record<string, unknown>}) => ({
         title: config.title_field ? extractFieldValue(r.fields[config.title_field]) : "",
         assignee: config.assignee_field ? extractFieldValue(r.fields[config.assignee_field]) : "",
         content: (config.content_fields || []).map((f: string) => extractFieldValue(r.fields[f])).filter(Boolean).join("\n\n"),
@@ -598,155 +642,152 @@ export function FeishuTab() {
               <p className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_conditions_hint)}</p>
             )}
 
-            {(config.filter_config?.filter_groups || []).map((group, groupIndex) => (
-              <div key={groupIndex}>
-                {groupIndex > 0 && (
-                  <div className="flex items-center justify-center py-2">
-                    <Select
-                      value={(config.filter_config?.filter_groups?.[groupIndex - 1]?.logic || "AND")}
-                      onValueChange={(v) => {
-                        const groups = config.filter_config?.filter_groups || [];
-                        const newGroups = [...groups];
-                        newGroups[groupIndex - 1] = { ...newGroups[groupIndex - 1], logic: v as "AND" | "OR" };
-                        setConfig({ ...config, filter_config: { filter_groups: newGroups } });
-                      }}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AND">AND</SelectItem>
-                        <SelectItem value="OR">OR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+            {(config.filter_config?.filter_groups || []).map((group, groupIndex) => {
+              const isLast = groupIndex === (config.filter_config?.filter_groups?.length || 0) - 1;
+              return (
+                <div key={groupIndex}>
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
+                      <Select
+                        value={group.logic}
+                        onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
+                          <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-xs text-destructive"
+                        onClick={() => removeFilterGroup(groupIndex)}
+                      >
+                        {t(($) => $.feishu.delete_group)}
+                      </Button>
+                    </div>
 
-                <div className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
-                    <Select
-                      value={group.logic}
-                      onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
-                        <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {group.conditions.map((cond, condIndex) => {
+                      const selectedField = fields?.find((f) => f.field_name === cond.field);
+                      const fieldType = selectedField?.type || 1;
+                      const operators = OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE[1];
+                      const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
+
+                      return (
+                        <div key={condIndex} className="flex items-center gap-2">
+                          <Select
+                            value={cond.field}
+                            onValueChange={(v) => {
+                              const f = fields?.find((field) => field.field_name === v);
+                              const newType = f?.type || 1;
+                              const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
+                              const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
+                              updateFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
+                            }}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={t(($) => $.feishu.select_field)} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(fields || []).map((f) => (
+                                <SelectItem key={f.field_id} value={f.field_name}>
+                                  {f.field_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={cond.operator}
+                            onValueChange={(v) => updateFilterCondition(groupIndex, condIndex, { operator: v })}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {operators.map((op) => (
+                                <SelectItem key={op.value} value={op.value}>
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {needsValue && (
+                            fieldType === 5 ? (
+                              <Input
+                                type="date"
+                                className="flex-1"
+                                value={cond.value as string || ""}
+                                onChange={(e) => updateFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                              />
+                            ) : fieldType === 7 ? (
+                              <Select
+                                value={cond.value as string || "true"}
+                                onValueChange={(v) => updateFilterCondition(groupIndex, condIndex, { value: v === "true" })}
+                              >
+                                <SelectTrigger className="flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
+                                  <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                className="flex-1"
+                                value={cond.value as string || ""}
+                                onChange={(e) => updateFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                                placeholder={t(($) => $.feishu.enter_value)}
+                              />
+                            )
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive shrink-0"
+                            onClick={() => removeFilterCondition(groupIndex, condIndex)}
+                          >
+                            <span className="text-xs">✕</span>
+                          </Button>
+                        </div>
+                      );
+                    })}
+
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="ml-auto text-xs text-destructive"
-                      onClick={() => removeFilterGroup(groupIndex)}
+                      className="text-xs"
+                      onClick={() => addFilterCondition(groupIndex)}
                     >
-                      {t(($) => $.feishu.delete_group)}
+                      {t(($) => $.feishu.add_condition)}
                     </Button>
                   </div>
-
-                  {group.conditions.map((cond, condIndex) => {
-                    const selectedField = fields?.find((f) => f.field_name === cond.field);
-                    const fieldType = selectedField?.type || 1;
-                    const operators = OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE[1];
-                    const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
-
-                    return (
-                      <div key={condIndex} className="flex items-center gap-2">
-                        <Select
-                          value={cond.field}
-                          onValueChange={(v) => {
-                            const f = fields?.find((field) => field.field_name === v);
-                            const newType = f?.type || 1;
-                            const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
-                            const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
-                            updateFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
-                          }}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder={t(($) => $.feishu.select_field)} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(fields || []).map((f) => (
-                              <SelectItem key={f.field_id} value={f.field_name}>
-                                {f.field_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={cond.operator}
-                          onValueChange={(v) => updateFilterCondition(groupIndex, condIndex, { operator: v })}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {operators.map((op) => (
-                              <SelectItem key={op.value} value={op.value}>
-                                {op.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {needsValue && (
-                          fieldType === 5 ? (
-                            <Input
-                              type="date"
-                              className="flex-1"
-                              value={cond.value as string || ""}
-                              onChange={(e) => updateFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                            />
-                          ) : fieldType === 7 ? (
-                            <Select
-                              value={cond.value as string || "true"}
-                              onValueChange={(v) => updateFilterCondition(groupIndex, condIndex, { value: v === "true" })}
-                            >
-                              <SelectTrigger className="flex-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
-                                <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              className="flex-1"
-                              value={cond.value as string || ""}
-                              onChange={(e) => updateFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                              placeholder={t(($) => $.feishu.enter_value)}
-                            />
-                          )
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive shrink-0"
-                          onClick={() => removeFilterCondition(groupIndex, condIndex)}
-                        >
-                          <span className="text-xs">✕</span>
-                        </Button>
-                      </div>
-                    );
-                  })}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => addFilterCondition(groupIndex)}
-                  >
-                    {t(($) => $.feishu.add_condition)}
-                  </Button>
+                  {!isLast && (
+                    <div className="flex items-center justify-center py-2">
+                      <Select
+                        value={group.logic}
+                        onValueChange={(v) => updateFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">AND</SelectItem>
+                          <SelectItem value="OR">OR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -763,153 +804,150 @@ export function FeishuTab() {
 
             <p className="text-xs text-muted-foreground">{t(($) => $.feishu.tasks_filter_conditions_hint)}</p>
 
-            {(config.tasks_filter_config?.filter_groups || []).map((group, groupIndex) => (
-              <div key={groupIndex}>
-                {groupIndex > 0 && (
-                  <div className="flex items-center justify-center py-2">
-                    <Select
-                      value={(config.tasks_filter_config?.filter_groups?.[groupIndex - 1]?.logic || "AND")}
-                      onValueChange={(v) => {
-                        const groups = config.tasks_filter_config?.filter_groups || [];
-                        const newGroups = [...groups];
-                        newGroups[groupIndex - 1] = { ...newGroups[groupIndex - 1], logic: v as "AND" | "OR" };
-                        setConfig({ ...config, tasks_filter_config: { filter_groups: newGroups } });
-                      }}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AND">AND</SelectItem>
-                        <SelectItem value="OR">OR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+            {(config.tasks_filter_config?.filter_groups || []).map((group, groupIndex) => {
+              const isLast = groupIndex === (config.tasks_filter_config?.filter_groups?.length || 0) - 1;
+              return (
+                <div key={groupIndex}>
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
+                      <Select
+                        value={group.logic}
+                        onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
+                          <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-xs text-destructive"
+                        onClick={() => removeTasksFilterGroup(groupIndex)}
+                      >
+                        {t(($) => $.feishu.delete_group)}
+                      </Button>
+                    </div>
 
-                <div className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{t(($) => $.feishu.filter_group_logic)}</span>
-                    <Select
-                      value={group.logic}
-                      onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AND">{t(($) => $.feishu.filter_and)}</SelectItem>
-                        <SelectItem value="OR">{t(($) => $.feishu.filter_or)}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {group.conditions.map((cond, condIndex) => {
+                      const fieldType = TASK_FIELD_TYPES[cond.field] || 1;
+                      const operators = OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE[1];
+                      const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
+
+                      return (
+                        <div key={condIndex} className="flex items-center gap-2">
+                          <Select
+                            value={cond.field}
+                            onValueChange={(v) => {
+                              const newType = TASK_FIELD_TYPES[v] || 1;
+                              const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
+                              const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
+                              updateTasksFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
+                            }}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={t(($) => $.feishu.select_field)} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TASK_FIELD_NAMES.map((f) => (
+                                <SelectItem key={f.value} value={f.value}>
+                                  {f.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={cond.operator}
+                            onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { operator: v })}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {operators.map((op) => (
+                                <SelectItem key={op.value} value={op.value}>
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {needsValue && (
+                            fieldType === 5 ? (
+                              <Input
+                                type="date"
+                                className="flex-1"
+                                value={cond.value as string || ""}
+                                onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                              />
+                            ) : fieldType === 7 ? (
+                              <Select
+                                value={cond.value as string || "true"}
+                                onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { value: v === "true" })}
+                              >
+                                <SelectTrigger className="flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
+                                  <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                className="flex-1"
+                                value={cond.value as string || ""}
+                                onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
+                                placeholder={t(($) => $.feishu.enter_value)}
+                              />
+                            )
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive shrink-0"
+                            onClick={() => removeTasksFilterCondition(groupIndex, condIndex)}
+                          >
+                            <span className="text-xs">✕</span>
+                          </Button>
+                        </div>
+                      );
+                    })}
+
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="ml-auto text-xs text-destructive"
-                      onClick={() => removeTasksFilterGroup(groupIndex)}
+                      className="text-xs"
+                      onClick={() => addTasksFilterCondition(groupIndex)}
                     >
-                      {t(($) => $.feishu.delete_group)}
+                      {t(($) => $.feishu.add_condition)}
                     </Button>
                   </div>
-
-                  {group.conditions.map((cond, condIndex) => {
-                    const fieldType = TASK_FIELD_TYPES[cond.field] || 1;
-                    const operators = OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE[1];
-                    const needsValue = !NO_VALUE_OPERATORS.includes(cond.operator);
-
-                    return (
-                      <div key={condIndex} className="flex items-center gap-2">
-                        <Select
-                          value={cond.field}
-                          onValueChange={(v) => {
-                            const newType = TASK_FIELD_TYPES[v] || 1;
-                            const newOps = OPERATORS_BY_TYPE[newType] || OPERATORS_BY_TYPE[1];
-                            const newOp = newOps.some((o) => o.value === cond.operator) ? cond.operator : newOps[0].value;
-                            updateTasksFilterCondition(groupIndex, condIndex, { field: v, operator: newOp, value: needsValue ? cond.value : "" });
-                          }}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder={t(($) => $.feishu.select_field)} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TASK_FIELD_NAMES.map((f) => (
-                              <SelectItem key={f.value} value={f.value}>
-                                {f.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={cond.operator}
-                          onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { operator: v })}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {operators.map((op) => (
-                              <SelectItem key={op.value} value={op.value}>
-                                {op.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {needsValue && (
-                          fieldType === 5 ? (
-                            <Input
-                              type="date"
-                              className="flex-1"
-                              value={cond.value as string || ""}
-                              onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                            />
-                          ) : fieldType === 7 ? (
-                            <Select
-                              value={cond.value as string || "true"}
-                              onValueChange={(v) => updateTasksFilterCondition(groupIndex, condIndex, { value: v === "true" })}
-                            >
-                              <SelectTrigger className="flex-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="true">{t(($) => $.feishu.yes)}</SelectItem>
-                                <SelectItem value="false">{t(($) => $.feishu.no)}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              className="flex-1"
-                              value={cond.value as string || ""}
-                              onChange={(e) => updateTasksFilterCondition(groupIndex, condIndex, { value: e.target.value })}
-                              placeholder={t(($) => $.feishu.enter_value)}
-                            />
-                          )
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive shrink-0"
-                          onClick={() => removeTasksFilterCondition(groupIndex, condIndex)}
-                        >
-                          <span className="text-xs">✕</span>
-                        </Button>
-                      </div>
-                    );
-                  })}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => addTasksFilterCondition(groupIndex)}
-                  >
-                    {t(($) => $.feishu.add_condition)}
-                  </Button>
+                  {!isLast && (
+                    <div className="flex items-center justify-center py-2">
+                      <Select
+                        value={group.logic}
+                        onValueChange={(v) => updateTasksFilterGroup(groupIndex, { logic: v as "AND" | "OR" })}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">AND</SelectItem>
+                          <SelectItem value="OR">OR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
